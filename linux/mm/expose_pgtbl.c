@@ -9,9 +9,23 @@
  * int get_pagetable_layout(struct pagetable_layout_info __user *pgtbl_info);
  */
        
-SYSCALL_DEFINE2(get_pagetable_layout,
+SYSCALL_DEFINE1(get_pagetable_layout,
 	struct pagetable_layout_info __user *, pgtbl_info)
 {
+	struct pagetable_layout_info temp_info;
+
+	if (pgtbl_info == NULL)
+		return -EINVAL;
+
+	temp_info.pgdir_shift = PGDIR_SHIFT;
+	temp_info.p4d_shift = P4D_SHIFT;
+	temp_info.pud_shift = PUD_SHIFT;
+	temp_info.pmd_shift = PMD_SHIFT;
+	temp_info.page_shift = PAGE_SHIFT;
+
+	if (copy_to_user(pgtbl_info, &temp_info, sizeof(struct pagetable_layout_info)))
+		return -EFAULT;
+	return 0;
 }
 
 /*
