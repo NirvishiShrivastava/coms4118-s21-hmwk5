@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/mm_types.h>
+#include <linux/expose_pgtbl.h>
 
 /*
  * System call to get the page table layout information
@@ -37,4 +38,5 @@ SYSCALL_DEFINE1(get_pagetable_layout,
 SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	struct expose_pgtbl_args __user *, args)
 {
+	return 0;
 }
