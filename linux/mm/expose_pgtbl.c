@@ -3,6 +3,8 @@
 #include <linux/errno.h>
 #include <linux/mm_types.h>
 #include <linux/expose_pgtbl.h>
+#include <linux/sched/mm.h>
+#include <linux/pid.h>
 
 /*
  * System call to get the page table layout information
@@ -75,7 +77,7 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 		return -EFAULT;
     
     	if (task != current)
-		spin_lock(&mm->page_table_lock);
+		spin_lock(&task_mm->page_table_lock);
     
     	/* Traversing list of struct VMA’s */
     	for (; task_vma->vm_next != NULL; task_vma = task_vma->vm_next) {      
@@ -97,7 +99,7 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
              * Get corresponding PGD entry from PGD table
              * of current page using its virtual address (curr_va) 
              */
-			pgd = pgd_offset(mm, curr_va);
+			pgd = pgd_offset(task_mm, curr_va);
             if (pgd_none_or_clear_bad(pgd))
                 continue;
             /* 
@@ -144,6 +146,6 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 			
     }
     if (task != current)
-		spin_unlock(&mm->page_table_lock);
+		spin_unlock(&task_mm->page_table_lock);
     return 0;
 }
