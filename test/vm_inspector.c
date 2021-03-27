@@ -44,7 +44,7 @@ int expose_page_tbl(pid_t pid, struct expose_pgtbl_args *args)
 
 static inline unsigned long get_phys_addr(unsigned long pte_entry)
 {
-    return (((1UL << 46) - 1) & pte_entry) >> 12 << 12;
+    return (((1UL << 52) - 1) & pte_entry) >> 12 << 12;
 }
 
 static inline int young_bit(unsigned long pte_entry)
