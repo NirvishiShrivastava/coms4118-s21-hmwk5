@@ -9,44 +9,64 @@
 static int fake_p4d_tbl_count;
 static int fake_pud_tbl_count;
 static int fake_pmd_tbl_count;
+static int fake_pte_tbl_count;
 
-static int save_pgd(unsigned long fake_pgd, unsigned long fake_p4ds,
-		unsigned long curr_va, struct task_struct *tsk,
-		unsigned long *p4d_base_ptr)
+static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *p,
+	pmd_t *fake_pmd, pud_t *base_pud, 
+	struct expose_pgtbl_args temp_args,
+	unsigned long addr, unsigned long end)
 {
-	unsigned long *fake_pgd_entry;
-	unsigned long fake_p4d_addr;
+	unsigned long pfn;
+	unsigned long *fake_pmd_entry, fake_pte_addr;
+	struct vm_area_struct *pte_vma;
 
-	fake_pgd_entry = (unsigned long *) pgd_offset_pgd(fake_pgd, curr_va);
+	fake_pmd_entry = (unsigned long *) pmd_offset(base_pud, addr);
 
-	fake_p4d_addr = fake_p4ds + fake_p4d_tbl_count * (PTRS_PER_P4D * sizeof(unsigned long));
-	fake_p4d_tbl_count++;
+	fake_pte_addr = temp_args.page_table_addr + fake_pte_tbl_count * (PTRS_PER_PTE * sizeof(unsigned long));
+	fake_pte_tbl_count++;
 
-	*p4d_base_ptr = fake_p4d_addr;
-
-	if (tsk != current)
-		spin_unlock(&tsk->mm->page_table_lock);
-
+	// if (tsk != current)
+		spin_unlock(&task_mm->page_table_lock);
 	/* Releasing lock before copy_to_user call */
-	if (copy_to_user(fake_pgd_entry, &fake_p4d_addr, sizeof(unsigned long)))
+	if (copy_to_user(fake_pmd_entry, &fake_pte_addr, sizeof(unsigned long)))
 		return -EFAULT;
-	if (tsk != current)
-		spin_lock(&tsk->mm->page_table_lock);
+	// if (tsk != current)
+		spin_lock(&task_mm->page_table_lock);
+
+	pfn = pmd_pfn(*fake_pmd);
+
+	pte_vma = find_vma(current->mm, fake_pte_addr);
+	if (pte_vma == NULL)
+		return -EFAULT;
+
+	if (p != current)
+		down_write(&p->mm->mmap_sem);
+	down_write(&current->mm->mmap_sem);
+	if (remap_pfn_range(pte_vma, fake_pte_addr, pfn,
+		     PAGE_SIZE, pte_vma->vm_page_prot)) {
+		if (p != current)
+			up_write(&p->mm->mmap_sem);
+		up_write(&current->mm->mmap_sem);
+		return -EAGAIN;
+	}
+	if (p != current)
+		up_write(&p->mm->mmap_sem);
+	up_write(&current->mm->mmap_sem);
 
 	return 0;
 }
 
-static inline int ctor_fake_pmd(struct mm_struct *task_mm,
-		pud_t *fake_pud, p4d_t *base_p4d, struct expose_pgtbl_args temp_args, struct vm_area_struct *vma,
+static inline int ctor_fake_pmd(struct mm_struct *task_mm, struct task_struct *tsk,
+		pud_t *fake_pud, p4d_t *base_p4d, struct expose_pgtbl_args temp_args,
 		unsigned long addr, unsigned long end)
 {
-	unsigned long next;
+	unsigned long next, temp;
 	unsigned long *fake_pud_entry, *fake_pmd_addr;
-	int ret;
 
 	fake_pud_entry = (unsigned long *) pud_offset(base_p4d, addr);
 
-	*fake_pmd_addr = temp_args.fake_pmds + fake_pmd_tbl_count * (PTRS_PER_PMD * sizeof(unsigned long));
+	temp = temp_args.fake_pmds + fake_pmd_tbl_count * (PTRS_PER_PMD * sizeof(unsigned long));
+	fake_pmd_addr = &temp;
 	fake_pmd_tbl_count++;
 
 	// if (tsk != current)
@@ -61,27 +81,27 @@ static inline int ctor_fake_pmd(struct mm_struct *task_mm,
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_clear_bad((pmd_t *) (fake_pmd_addr)))
 			continue;
-		// if (unlikely(ctor_fake_pte(task_mm, fake_pmd_addr, fake_pud_entry, 
-		// 	temp_args, vma, addr, next))) {
-		// 	ret = -ENOMEM;
-		// 	break;
-		// }
+		if (unlikely(remap_fake_pte(task_mm, tsk, (pmd_t *)fake_pmd_addr, (pud_t*)fake_pud_entry, 
+			temp_args, addr, next))) {
+			return -ENOMEM;
+			break;
+		}
 	} while (fake_pmd_addr++, addr = next, addr != end);
 
 	return 0;
 }
 
-static inline int ctor_fake_pud(struct mm_struct *task_mm,
-		p4d_t *fake_p4d, pgd_t *base_pgd, struct expose_pgtbl_args temp_args, struct vm_area_struct *vma,
+static inline int ctor_fake_pud(struct mm_struct *task_mm, struct task_struct *tsk,
+		p4d_t *fake_p4d, pgd_t *base_pgd, struct expose_pgtbl_args temp_args,
 		unsigned long addr, unsigned long end)
 {
-	unsigned long next;
+	unsigned long next, temp;
 	unsigned long *fake_p4d_entry, *fake_pud_addr;
-	int ret;
 
 	fake_p4d_entry = (unsigned long *) p4d_offset(base_pgd, addr);
 
-	*fake_pud_addr = temp_args.fake_puds + fake_pud_tbl_count * (PTRS_PER_PUD * sizeof(unsigned long));
+	temp = temp_args.fake_puds + fake_pud_tbl_count * (PTRS_PER_PUD * sizeof(unsigned long));
+	fake_pud_addr = &temp;
 	fake_pud_tbl_count++;
 
 	// if (tsk != current)
@@ -96,9 +116,9 @@ static inline int ctor_fake_pud(struct mm_struct *task_mm,
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad((pud_t *) (fake_pud_addr)))
 			continue;
-		if (unlikely(ctor_fake_pmd(task_mm, (pud_t *)fake_pud_addr, (p4d_t *)fake_p4d_entry, 
-			temp_args, vma, addr, next))) {
-			ret = -ENOMEM;
+		if (unlikely(ctor_fake_pmd(task_mm, tsk, (pud_t *)fake_pud_addr, (p4d_t *)fake_p4d_entry, 
+			temp_args, addr, next))) {
+			return -ENOMEM;
 			break;
 		}
 	} while (fake_pud_addr++, addr = next, addr != end);
@@ -106,17 +126,17 @@ static inline int ctor_fake_pud(struct mm_struct *task_mm,
 	return 0;
 }
 
-static inline int ctor_fake_p4d(struct mm_struct *task_mm,
-		pgd_t *fake_pgd, struct expose_pgtbl_args temp_args, struct vm_area_struct *vma,
+static inline int ctor_fake_p4d(struct mm_struct *task_mm, struct task_struct *tsk,
+		pgd_t *fake_pgd, struct expose_pgtbl_args temp_args,
 		unsigned long addr, unsigned long end)
 {
-	unsigned long next;
+	unsigned long next, temp;
 	unsigned long *fake_pgd_entry, *fake_p4d_addr;
-	int ret;
 
 	fake_pgd_entry = (unsigned long *) pgd_offset_pgd(fake_pgd, addr);
 
-	*fake_p4d_addr = temp_args.fake_p4ds + fake_p4d_tbl_count * (PTRS_PER_P4D * sizeof(unsigned long));
+	temp = temp_args.fake_p4ds + fake_p4d_tbl_count * (PTRS_PER_P4D * sizeof(unsigned long));
+	fake_p4d_addr = &temp;
 	fake_p4d_tbl_count++;
 
 	// if (tsk != current)
@@ -131,9 +151,9 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm,
 		next = p4d_addr_end(addr, end);
 		if (p4d_none_or_clear_bad((p4d_t *) (fake_p4d_addr)))
 			continue;
-		if (unlikely(ctor_fake_pud(task_mm, (p4d_t *)fake_p4d_addr, (pgd_t *)fake_pgd_entry,
-			 temp_args, vma, addr, next))) {
-			ret = -ENOMEM;
+		if (unlikely(ctor_fake_pud(task_mm, tsk, (p4d_t *)fake_p4d_addr, (pgd_t *)fake_pgd_entry,
+			 temp_args, addr, next))) {
+			return -ENOMEM;
 			break;
 		}
 	} while (fake_p4d_addr++, addr = next, addr != end);
@@ -179,19 +199,14 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 {
 	struct expose_pgtbl_args temp_args;
 	struct mm_struct *task_mm;
-	struct vm_area_struct *vma;
 	struct task_struct *task;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	int ret;
 	unsigned long addr, end, next;
 	unsigned long *fake_pgd;
 
-	/* start, end and current virtual addresses of struct VMA pages*/
-	unsigned long start_va, end_va, curr_va;
-	unsigned long base_p4d_addr;
+	fake_p4d_tbl_count = 0;
+	fake_pud_tbl_count = 0;
+	fake_pmd_tbl_count = 0;
+	fake_pte_tbl_count = 0;
 
 	/* Validating and copying expose_pgtbl_args from userspace */
 	if (args == NULL || pid < -1)
@@ -224,89 +239,12 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad((pgd_t *)fake_pgd))
 			continue;
-		if (unlikely(ctor_fake_p4d(task_mm, (pgd_t *)fake_pgd, temp_args,
-					    vma, addr, next))) {
-			ret = -ENOMEM;
+		if (unlikely(ctor_fake_p4d(task_mm, task, (pgd_t *)fake_pgd, temp_args,
+					    addr, next))) {
+			return -ENOMEM;
 			break;
 		}
 	} while (fake_pgd++, addr = next, addr != end);
 
-
-	// task_vma = find_vma(task_mm, temp_args.begin_vaddr);
-
-	// if (task_vma == NULL)
-	// 	return -EFAULT;
-
-	// if (task != current)
-	// 	spin_lock(&task_mm->page_table_lock);
-
-	// /* Traversing list of struct VMA’s */
- //    for (; task_vma->vm_next != NULL; task_vma = task_vma->vm_next) {
-	// 	/* Determining start and end of each struct VMA */
-	// 	if (task_vma->vm_start > temp_args.begin_vaddr)
-	// 		start_va = task_vma->vm_start;
-	// 	else
-	// 		start_va = temp_args.begin_vaddr;
-	// 	if (task_vma->vm_end < temp_args.end_vaddr)
-	// 		end_va = task_vma->vm_end;
-	// 	else
-	// 		end_va = temp_args.end_vaddr;
-
-	// 	/* Traversing the current struct VMA from its start to end*/
-	// 	for (curr_va = start_va; curr_va <= end_va; curr_va++) {
-	// 		/* Get corresponding PGD entry from PGD table
-	// 		 * of current page using its virtual address (curr_va)
-	// 		 */
-	// 		pgd = pgd_offset(task_mm, curr_va);
-	// 		if (pgd_none_or_clear_bad(pgd))
-	// 			continue;
-	// 		/*
-	// 		 * TODO: create function that creates and copies fake PGD table entries 
-	// 		 * to user provided fake_pgd.
-	// 		 */
-	// 		res = save_pgd(temp_args.fake_pgd, temp_args.fake_p4ds, curr_va,
-	// 					task, &base_p4d_addr);
-	// 		if (unlikely(res != 0))
-	// 				return res;
-
-	// 		/*
-	// 		 * Get corresponding P4D entry from P4D table
-	// 		 * of current page using its virtual address (curr_va)
-	// 		 */
-	// 		p4d = p4d_offset(pgd, curr_va);
-	// 		if (p4d_none_or_clear_bad(p4d))
-	// 			continue;
-	// 		/*
-	// 		 * TODO: create function that creates and copies fake P4D table entry
-	// 		 * to user provided fake_p4d.
-	// 		 */
-
-	// 		/* 
-	// 		 * Get corresponding PUD entry from PUD table
-	// 		 * of current page using its virtual address (curr_va)
-	// 		 */
-	// 		pud = pud_offset(p4d, curr_va);
-	// 		if (pud_none_or_clear_bad(pud))
-	// 			continue;
-	// 		/*
-	// 		 * TODO: create function that creates and copies fake PUD table entry
-	// 		 * to user provided fake_pud.
-	// 		 */
-
-	// 		 /*
-	// 		  * Get corresponding PMD entry from PMD table
-	// 		  * of current page using its virtual address (curr_va)
-	// 		  */
-	// 		pmd = pmd_offset(pud, curr_va);
-	// 		if (pmd_none_or_clear_bad(pmd))
-	// 			continue;
-	// 		/*
-	// 		 * TODO: create function that creates and copies fake PMD table entry
-	// 		 * to user provided fake_pmd.
-	// 		 */
-	// 	}
-	// }
-	// if (task != current)
-	// 	spin_unlock(&task_mm->page_table_lock);
 	return 0;
 }
