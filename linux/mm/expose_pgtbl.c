@@ -11,7 +11,7 @@ static int fake_pud_tbl_count;
 static int fake_pmd_tbl_count;
 static int fake_pte_tbl_count;
 
-static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *p,
+static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *p, pmd_t *orig_pmd,
 	pmd_t *fake_pmd, pud_t *base_pud, 
 	struct expose_pgtbl_args temp_args,
 	unsigned long addr, unsigned long end)
@@ -26,14 +26,14 @@ static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *
 	fake_pte_tbl_count++;
 
 	// if (tsk != current)
-		spin_unlock(&task_mm->page_table_lock);
+		// spin_unlock(&task_mm->page_table_lock);
 	/* Releasing lock before copy_to_user call */
 	if (copy_to_user(fake_pmd_entry, &fake_pte_addr, sizeof(unsigned long)))
 		return -EFAULT;
 	// if (tsk != current)
-		spin_lock(&task_mm->page_table_lock);
+		// spin_lock(&task_mm->page_table_lock);
 
-	pfn = pmd_pfn(*fake_pmd);
+	pfn = pmd_pfn(*orig_pmd);
 
 	pte_vma = find_vma(current->mm, fake_pte_addr);
 	if (pte_vma == NULL)
@@ -56,32 +56,34 @@ static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *
 	return 0;
 }
 
-static inline int ctor_fake_pmd(struct mm_struct *task_mm, struct task_struct *tsk,
+static inline int ctor_fake_pmd(struct mm_struct *task_mm, struct task_struct *tsk, pud_t *orig_pud,
 		pud_t *fake_pud, p4d_t *base_p4d, struct expose_pgtbl_args temp_args,
 		unsigned long addr, unsigned long end)
 {
 	unsigned long next, temp;
 	unsigned long *fake_pud_entry, *fake_pmd_addr;
+	pmd_t *orig_pmd;
 
 	fake_pud_entry = (unsigned long *) pud_offset(base_p4d, addr);
+	orig_pmd = pmd_offset(orig_pud, addr);
 
 	temp = temp_args.fake_pmds + fake_pmd_tbl_count * (PTRS_PER_PMD * sizeof(unsigned long));
 	fake_pmd_addr = &temp;
 	fake_pmd_tbl_count++;
 
 	// if (tsk != current)
-		spin_unlock(&task_mm->page_table_lock);
+		// spin_unlock(&task_mm->page_table_lock);
 	/* Releasing lock before copy_to_user call */
 	if (copy_to_user(fake_pud_entry, fake_pmd_addr, sizeof(unsigned long)))
 		return -EFAULT;
 	// if (tsk != current)
-		spin_lock(&task_mm->page_table_lock);
+		// spin_lock(&task_mm->page_table_lock);
 
 	do {
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_clear_bad((pmd_t *) (fake_pmd_addr)))
 			continue;
-		if (unlikely(remap_fake_pte(task_mm, tsk, (pmd_t *)fake_pmd_addr, (pud_t*)fake_pud_entry, 
+		if (unlikely(remap_fake_pte(task_mm, tsk, orig_pmd, (pmd_t *)fake_pmd_addr, (pud_t*)fake_pud_entry, 
 			temp_args, addr, next))) {
 			return -ENOMEM;
 			break;
@@ -91,32 +93,34 @@ static inline int ctor_fake_pmd(struct mm_struct *task_mm, struct task_struct *t
 	return 0;
 }
 
-static inline int ctor_fake_pud(struct mm_struct *task_mm, struct task_struct *tsk,
+static inline int ctor_fake_pud(struct mm_struct *task_mm, struct task_struct *tsk, p4d_t *orig_p4d,
 		p4d_t *fake_p4d, pgd_t *base_pgd, struct expose_pgtbl_args temp_args,
 		unsigned long addr, unsigned long end)
 {
 	unsigned long next, temp;
 	unsigned long *fake_p4d_entry, *fake_pud_addr;
+	pud_t *orig_pud;
 
 	fake_p4d_entry = (unsigned long *) p4d_offset(base_pgd, addr);
+	orig_pud = pud_offset(orig_p4d, addr);
 
 	temp = temp_args.fake_puds + fake_pud_tbl_count * (PTRS_PER_PUD * sizeof(unsigned long));
 	fake_pud_addr = &temp;
 	fake_pud_tbl_count++;
 
 	// if (tsk != current)
-		spin_unlock(&task_mm->page_table_lock);
+		// spin_unlock(&task_mm->page_table_lock);
 	/* Releasing lock before copy_to_user call */
 	if (copy_to_user(fake_p4d_entry, fake_pud_addr, sizeof(unsigned long)))
 		return -EFAULT;
 	// if (tsk != current)
-		spin_lock(&task_mm->page_table_lock);
+		// spin_lock(&task_mm->page_table_lock);
 
 	do {
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad((pud_t *) (fake_pud_addr)))
 			continue;
-		if (unlikely(ctor_fake_pmd(task_mm, tsk, (pud_t *)fake_pud_addr, (p4d_t *)fake_p4d_entry, 
+		if (unlikely(ctor_fake_pmd(task_mm, tsk, orig_pud, (pud_t *)fake_pud_addr, (p4d_t *)fake_p4d_entry, 
 			temp_args, addr, next))) {
 			return -ENOMEM;
 			break;
@@ -126,32 +130,34 @@ static inline int ctor_fake_pud(struct mm_struct *task_mm, struct task_struct *t
 	return 0;
 }
 
-static inline int ctor_fake_p4d(struct mm_struct *task_mm, struct task_struct *tsk,
+static inline int ctor_fake_p4d(struct mm_struct *task_mm, struct task_struct *tsk, pgd_t * orig_pgd,
 		pgd_t *fake_pgd, struct expose_pgtbl_args temp_args,
 		unsigned long addr, unsigned long end)
 {
 	unsigned long next, temp;
 	unsigned long *fake_pgd_entry, *fake_p4d_addr;
+	p4d_t *orig_p4d;
 
 	fake_pgd_entry = (unsigned long *) pgd_offset_pgd(fake_pgd, addr);
+	orig_p4d = p4d_offset(orig_pgd, addr);
 
 	temp = temp_args.fake_p4ds + fake_p4d_tbl_count * (PTRS_PER_P4D * sizeof(unsigned long));
 	fake_p4d_addr = &temp;
 	fake_p4d_tbl_count++;
 
 	// if (tsk != current)
-		spin_unlock(&task_mm->page_table_lock);
+		// spin_unlock(&task_mm->page_table_lock);
 	/* Releasing lock before copy_to_user call */
 	if (copy_to_user(fake_pgd_entry, fake_p4d_addr, sizeof(unsigned long)))
 		return -EFAULT;
 	// if (tsk != current)
-		spin_lock(&task_mm->page_table_lock);
+		// spin_lock(&task_mm->page_table_lock);
 
 	do {
 		next = p4d_addr_end(addr, end);
 		if (p4d_none_or_clear_bad((p4d_t *) (fake_p4d_addr)))
 			continue;
-		if (unlikely(ctor_fake_pud(task_mm, tsk, (p4d_t *)fake_p4d_addr, (pgd_t *)fake_pgd_entry,
+		if (unlikely(ctor_fake_pud(task_mm, tsk, orig_p4d, (p4d_t *)fake_p4d_addr, (pgd_t *)fake_pgd_entry,
 			 temp_args, addr, next))) {
 			return -ENOMEM;
 			break;
@@ -202,6 +208,7 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	struct task_struct *task;
 	unsigned long addr, end, next;
 	unsigned long *fake_pgd;
+	pgd_t *orig_pgd;
 
 	fake_p4d_tbl_count = 0;
 	fake_pud_tbl_count = 0;
@@ -233,13 +240,12 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	end = temp_args.end_vaddr;
 	
 	fake_pgd = &temp_args.fake_pgd;
-
-	// src_pgd = pgd_offset(task_mm, addr);
+	orig_pgd = pgd_offset(task_mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad((pgd_t *)fake_pgd))
 			continue;
-		if (unlikely(ctor_fake_p4d(task_mm, task, (pgd_t *)fake_pgd, temp_args,
+		if (unlikely(ctor_fake_p4d(task_mm, task, orig_pgd, (pgd_t *)fake_pgd, temp_args,
 					    addr, next))) {
 			return -ENOMEM;
 			break;
