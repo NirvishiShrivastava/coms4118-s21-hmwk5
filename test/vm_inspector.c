@@ -197,12 +197,12 @@ int main(int argc, char *argv[])
         if (f_pte == 0) {
             if (verbose)
                 /* If a page is not present and the -v option is used */
-                printf("0xdead00000000 0x0 0 0 0 0\n");
+                printf("0xdead00000000 0x00000000000 0 0 0 0\n");
             continue;
             
         }
         
-        printf("0x%lu %lu %d %d %d %d\n", current_va, get_phys_addr(f_pte), young_bit(f_pte), dirty_bit(f_pte), write_bit(f_pte), user_bit(f_pte));
+        printf("%#014lx %#0x13lx %d %d %d %d\n", current_va, get_phys_addr(f_pte), young_bit(f_pte), dirty_bit(f_pte), write_bit(f_pte), user_bit(f_pte));
         
     }
     
