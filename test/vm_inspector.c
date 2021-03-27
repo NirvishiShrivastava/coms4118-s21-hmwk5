@@ -34,12 +34,12 @@ struct expose_pgtbl_args {
 
 int get_pagetbl_layout(struct pagetable_layout_info *pgtbl_info)
 {
-    return syscall(__NR_get_pagetable_layout, *pgtbl_info);
+    return syscall(__NR_get_pagetable_layout, pgtbl_info);
 }
 
 int expose_page_tbl(pid_t pid, struct expose_pgtbl_args *args)
 {
-    return syscall(__NR_expose_page_table, pid, *args);
+    return syscall(__NR_expose_page_table, pid, args);
 }
 
 static inline unsigned long get_phys_addr(unsigned long pte_entry)
