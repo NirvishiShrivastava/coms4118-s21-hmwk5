@@ -98,16 +98,20 @@ int main(int argc, char *argv[])
         printf("Note correct usage - ./vm_inspector [-v] pid va_begin va_end");
         exit(EXIT_FAILURE);
     }
-    
+   
+    printf("%d, %ld, %ld\n", pid, va_begin, va_end);
+    if(verbose)
+	    printf("Verbose is set\n");
+
     /* Assigning begin and end VA */
     pgtbl_args.begin_vaddr = va_begin;
     pgtbl_args.end_vaddr = va_end;
     
     pgd_size = 512 * sizeof(unsigned long);
-    p4d_size = 512 * 512 * sizeof(unsigned long);
-    pud_size = 512 * 512 * 512 * sizeof(unsigned long);
-    pmd_size = 512 * 512 * 512 * 512 * sizeof(unsigned long);
-    pte_size = 512 * 512 * 512 * 512 * 512 * sizeof(unsigned long);
+    p4d_size = 1 * pgd_size;
+    pud_size = 512 * p4d_size;
+    pmd_size = 512 * pud_size;
+    pte_size = 1 * pmd_size;
     
     
     /* Allocating memory for page tables */
@@ -116,7 +120,7 @@ int main(int argc, char *argv[])
             return -ENOMEM;
     
     pgtbl_args.fake_pgd = (unsigned long)addr;
-    
+   
     addr1 = mmap(NULL, p4d_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr1 == MAP_FAILED) {
         fprintf(stderr, "Error : %s\n", strerror(errno));
@@ -132,7 +136,6 @@ int main(int argc, char *argv[])
     }
     
     pgtbl_args.fake_puds = (unsigned long)addr2;
-    
     addr3 = mmap(NULL, pmd_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr3 == MAP_FAILED) {
         fprintf(stderr, "Error : %s\n", strerror(errno));
@@ -140,7 +143,6 @@ int main(int argc, char *argv[])
     }
     
     pgtbl_args.fake_pmds = (unsigned long)addr3;
-    
     addr4 = mmap(NULL, pte_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr4 == MAP_FAILED) {
         fprintf(stderr, "Error : %s\n", strerror(errno));
@@ -148,7 +150,6 @@ int main(int argc, char *argv[])
     }
     
     pgtbl_args.page_table_addr = (unsigned long)addr4;
-    
     
     /* Calling Get Page Table Layout System Call */
     ret = get_pagetbl_layout(&pgtbl_info);
