@@ -32,14 +32,14 @@ struct expose_pgtbl_args {
         unsigned long end_vaddr;
 };
 
-int get_pagetbl_layout(struct pagetable_layout_info __user *pgtbl_info)
+int get_pagetbl_layout(struct pagetable_layout_info *pgtbl_info)
 {
-    syscall(__NR_get_pagetable_layout, *pgtbl_info);
+    return syscall(__NR_get_pagetable_layout, *pgtbl_info);
 }
 
-int expose_page_tbl(pid_t pid, struct expose_pgtbl_args __user *args)
+int expose_page_tbl(pid_t pid, struct expose_pgtbl_args *args)
 {
-    syscall(__NR_expose_page_table, pid, *args);
+    return syscall(__NR_expose_page_table, pid, *args);
 }
 
 static inline unsigned long get_phys_addr(unsigned long pte_entry)
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
     pid_t pid;
     int pgd_size, p4d_size, pud_size, pmd_size, pte_size, verbose, ret;
     unsigned long va_begin, va_end, current_va, *addr, *addr1, *addr2, *addr3, *addr4;
-    unsigned long *fake_pgd, f_pgd, f_p4d, f_pud, f_pmd, f_pte;
+    unsigned long *fake_pgd, *f_pgd, *f_p4d, *f_pud, *f_pmd, f_pte;
     
     if (argc == 4) {
         verbose = 0;
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
     
     addr1 = mmap(NULL, p4d_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr1 == MAP_FAILED) {
-        printf(stderr, "Error : %s\n", strerror(errno));
+        fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
     
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
     
     addr2 = mmap(NULL, pud_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr2 == MAP_FAILED) {
-        printf(stderr, "Error : %s\n", strerror(errno));
+        fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
     
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
     
     addr3 = mmap(NULL, pmd_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr3 == MAP_FAILED) {
-        printf(stderr, "Error : %s\n", strerror(errno));
+        fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
     
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
     
     addr4 = mmap(NULL, pte_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr4 == MAP_FAILED) {
-        printf(stderr, "Error : %s\n", strerror(errno));
+        fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
     
@@ -153,46 +153,46 @@ int main(int argc, char *argv[])
     /* Calling Get Page Table Layout System Call */
     ret = get_pagetbl_layout(&pgtbl_info);
     if (ret < 0) {
-        printf(stderr, "Error : %s\n", strerror(errno));
+        fprintf(stderr, "Error : %s\n", strerror(errno));
         printf("Get Page Table Layout System Call Failed.\n");
         exit(EXIT_FAILURE);
     }
     
-    printf("pgdir_shift: %d, p4d_shift: %d, pud_shift: %d, pmd_shift: %d, page_shift: %d \n\n", pgtbl_info-> pgdir_shift, pgtbl_info->p4d_shift, pgtbl_info->pud_shift, pgtbl_info-> pmd_shift, pgtbl_info-> page_shift);
+    printf("pgdir_shift: %d, p4d_shift: %d, pud_shift: %d, pmd_shift: %d, page_shift: %d \n\n", pgtbl_info.pgdir_shift, pgtbl_info.p4d_shift, pgtbl_info.pud_shift, pgtbl_info.pmd_shift, pgtbl_info.page_shift);
     
     
     
     /* Calling Expose Page Table System Call */
-    ret = expose_page_tbl(pid, &args);
+    ret = expose_page_tbl(pid, &pgtbl_args);
     if (ret < 0) {
-        printf(stderr, "Error : %s\n", strerror(errno));
+        fprintf(stderr, "Error : %s\n", strerror(errno));
         printf("Expose Page Table System Call Failed.\n");
         exit(EXIT_FAILURE);
     }
     
     /* Printing the Page Entries */
     
-    fake_pgd = (unsigned long *)args->fake_pgd;
+    fake_pgd = (unsigned long *)pgtbl_args.fake_pgd;
     
     for (current_va = va_begin; current_va < va_end; current_va += PAGE_SIZE) {
         
-        f_pgd = (unsigned long *)fake_pgd[page_index( current_va, pgtbl_info->pgdir_shift )];
+        f_pgd = (unsigned long *)fake_pgd[page_index( current_va, pgtbl_info.pgdir_shift )];
         if(f_pgd == 0)
             continue;
         
-        f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info->p4d_shift )];
+        f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
         if (f_p4d == 0)
             continue;
         
-        f_pud = (unsigned long *)f_p4d[page_index( current_va, pgtbl_info->pud_shift )];
+        f_pud = (unsigned long *)f_p4d[page_index( current_va, pgtbl_info.pud_shift )];
         if (f_pud == 0)
             continue;
         
-        f_pmd = (unsigned long *)f_pud[page_index( current_va, pgtbl_info->pmd_shift )];
+        f_pmd = (unsigned long *)f_pud[page_index( current_va, pgtbl_info.pmd_shift )];
         if (f_pmd == 0)
             continue;
         
-        f_pte = f_pmd[page_index( current_va, pgtbl_info->page_shift )];
+        f_pte = f_pmd[page_index( current_va, pgtbl_info.page_shift )];
         if (f_pte == 0) {
             if (verbose)
                 /* If a page is not present and the -v option is used */
@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
     
     
     /* Free allocated space */
-    free(addr)
+    free(addr);
     munmap(addr1,p4d_size);
     munmap(addr2,pud_size);
     munmap(addr3,pmd_size);
