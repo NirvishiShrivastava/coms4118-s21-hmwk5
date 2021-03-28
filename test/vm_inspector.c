@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
     /* Assigning begin and end VA */
     pgtbl_args.begin_vaddr = va_begin;
     pgtbl_args.end_vaddr = va_end;
-    
+
     pgd_size = 512 * sizeof(unsigned long);
     p4d_size = 1 * pgd_size;
     pud_size = 512 * p4d_size;
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    
+    printf("1\n"); 
     pgtbl_args.fake_p4ds = (unsigned long)addr1;
     
     addr2 = mmap(NULL, pud_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
@@ -134,21 +134,24 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    
+    printf("2\n");
+
     pgtbl_args.fake_puds = (unsigned long)addr2;
     addr3 = mmap(NULL, pmd_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr3 == MAP_FAILED) {
         fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    
+    printf("3\n");
+ 
     pgtbl_args.fake_pmds = (unsigned long)addr3;
     addr4 = mmap(NULL, pte_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr4 == MAP_FAILED) {
         fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    
+    printf("4\n");
+
     pgtbl_args.page_table_addr = (unsigned long)addr4;
     
     /* Calling Get Page Table Layout System Call */
