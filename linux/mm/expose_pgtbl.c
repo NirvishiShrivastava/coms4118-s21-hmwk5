@@ -157,15 +157,15 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm, struct task_struct *t
 	unsigned long *fake_pgd_entry, fake_p4d_addr;
 	p4d_t *orig_p4d;
 
-	pr_info("ADDR: %ld", addr);
-    pr_info("fake_pgd: %ld", fake_pgd);
+	pr_info("ADDR: %lu", addr);
+    pr_info("fake_pgd: %lu", fake_pgd);
 
 	// fake_pgd_entry = (unsigned long *) pgd_offset_pgd(fake_pgd, addr);
 	fake_pgd_entry = (unsigned long *) (fake_pgd +
 			pgd_index(addr) * sizeof(unsigned long));
 	orig_p4d = p4d_offset(orig_pgd, addr);
 
-	pr_info("fake_pgd_entry: %ld", (unsigned long) fake_pgd_entry);
+	pr_info("fake_pgd_entry: %lu", (unsigned long) fake_pgd_entry);
 
 	fake_p4d_addr = temp_args.fake_p4ds + fake_p4d_tbl_count * (PTRS_PER_P4D * sizeof(unsigned long));
 	fake_p4d_tbl_count++;
@@ -268,13 +268,13 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	
 	fake_pgd = temp_args.fake_pgd;
 	orig_pgd = pgd_offset(task_mm, addr);
-	pr_info("FAKE PGD: %ld", fake_pgd);
-    pr_info("ORIG PGD: %ld", pgd_val(*orig_pgd));
+	pr_info("FAKE PGD: %lu", fake_pgd);
+    pr_info("ORIG PGD: %lu", pgd_val(*orig_pgd));
 	do {
 		next = pgd_addr_end(addr, end);
-		pr_info("addr in main func: %ld", addr);
-		pr_info("next in main func: %ld", next);
-		pr_info("END %ld", end);
+		pr_info("addr in main func: %lu", addr);
+		pr_info("next in main func: %lu", next);
+		pr_info("END %lu", end);
 		if (pgd_none_or_clear_bad(orig_pgd))
 			continue;
 		pr_info("Calling ctor_fake_p4d");
