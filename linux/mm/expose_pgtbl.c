@@ -23,10 +23,18 @@ static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *
 
 	fake_pmd_entry = (unsigned long *) (fake_pmd +
 					pmd_index(addr) * sizeof(long));
-
+	pr_info("FAKE PMD BASE: %lu", fake_pmd);
+	pr_info("$$ ADDR Val: %lu", addr);
+	pr_info("PMD INDEX: %lu", pmd_index(addr));
+	pr_info("Final PMD entry to write: %lu", (unsigned long)fake_pmd_entry);
+	pr_info("^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 	fake_pte_addr = temp_args.page_table_addr + fake_pte_tbl_count * (PTRS_PER_PTE * sizeof(unsigned long));
 	fake_pte_tbl_count++;
-
+	pr_info("PTE Table Count #: %d", fake_pte_tbl_count);
+	pr_info("Base Page Table ADDR: %lu", temp_args.page_table_addr);
+	pr_info("PTRS_PER_PTE: %lu", PTRS_PER_PTE);
+	pr_info("FAKE PTE ADDR: %ld", fake_pte_addr);
+	pr_info("---------------------------------");
 	// if (tsk != current)
 		// spin_unlock(&task_mm->page_table_lock);
 	/* Releasing lock before copy_to_user call */
@@ -165,6 +173,7 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm, struct task_struct *t
 {
 	pr_info("Inside %s", __func__);
 	int ret;
+	pr_info("Value after Typecast : %lu", p4d_val(*((p4d_t *)orig_pgd)));
 	if (!pgtable_l5_enabled()) {
 		ret = ctor_fake_pud(task_mm, tsk, (p4d_t *)orig_pgd, fake_pgd,
 				temp_args, addr, end);
