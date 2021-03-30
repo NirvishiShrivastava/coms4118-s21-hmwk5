@@ -23,11 +23,14 @@ static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *
 
 	fake_pmd_entry = (unsigned long *) (fake_pmd +
 					pmd_index(addr) * sizeof(long));
+	pr_info("\n");
 	pr_info("FAKE PMD BASE: %lu", fake_pmd);
+	pr_info("ORIGINAL PMD: %lu", pmd_val(*orig_pmd));
 	pr_info("$$ ADDR Val: %lu", addr);
 	pr_info("PMD INDEX: %lu", pmd_index(addr));
 	pr_info("Final PMD entry to write: %lu", (unsigned long)fake_pmd_entry);
 	pr_info("^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+	pr_info("\n");
 	fake_pte_addr = temp_args.page_table_addr + fake_pte_tbl_count * (PTRS_PER_PTE * sizeof(unsigned long));
 	fake_pte_tbl_count++;
 	pr_info("PTE Table Count #: %d", fake_pte_tbl_count);
@@ -38,6 +41,7 @@ static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *
 	// if (tsk != current)
 		// spin_unlock(&task_mm->page_table_lock);
 	/* Releasing lock before copy_to_user call */
+	pr_info("COPY TO USER input address: %lu", &fake_pte_addr);
 	if (copy_to_user(fake_pmd_entry, &fake_pte_addr, sizeof(unsigned long)))
 		return -EFAULT;
 	// if (tsk != current)
