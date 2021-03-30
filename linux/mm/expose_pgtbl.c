@@ -118,8 +118,16 @@ static inline int ctor_fake_pud(struct mm_struct *task_mm, struct task_struct *t
 	pud_t *orig_pud;
 	int ret;
 
-	fake_p4d_entry = (unsigned long *) (fake_p4d +
+	if (!pgtable_l5_enabled()) {
+		fake_p4d_entry = (unsigned long *) (fake_p4d +
+                                pgd_index(addr) * sizeof(unsigned long));
+		pr_info("----INDEX---- %lu", pgd_index(addr));
+	} else {
+		fake_p4d_entry = (unsigned long *) (fake_p4d +
 				p4d_index(addr) * sizeof(unsigned long));
+		pr_info("----INDEX---- %lu", p4d_index(addr));
+	}
+	pr_info("Fake p4d/pgd entry: %lu", (unsigned long) fake_p4d_entry);
 	orig_pud = pud_offset(orig_p4d, addr);
 
 	fake_pud_addr = temp_args.fake_puds + fake_pud_tbl_count * (PTRS_PER_PUD * sizeof(unsigned long));
