@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
             
         }
         
-        printf("%#014lx %#0x13lx %d %d %d %d\n", current_va, get_phys_addr(f_pte), young_bit(f_pte), dirty_bit(f_pte), write_bit(f_pte), user_bit(f_pte));
+        printf("%#014lx %#013lx %d %d %d %d\n", current_va, get_phys_addr(f_pte), young_bit(f_pte), dirty_bit(f_pte), write_bit(f_pte), user_bit(f_pte));
         
     }
     

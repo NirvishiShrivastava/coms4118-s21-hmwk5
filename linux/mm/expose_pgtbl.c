@@ -167,8 +167,8 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm, struct task_struct *t
 	unsigned long *fake_pgd_entry, fake_p4d_addr;
 	p4d_t *orig_p4d;
 
-	pr_info("ADDR FROM P4D: %lu", addr);
-	pr_info("fake_pgd: %lu", fake_pgd);
+	pr_info("ADDR: %lu", addr);
+        pr_info("fake_pgd: %lu", fake_pgd);
 
 	// fake_pgd_entry = (unsigned long *) pgd_offset_pgd(fake_pgd, addr);
 	fake_pgd_entry = (unsigned long *) (fake_pgd +
