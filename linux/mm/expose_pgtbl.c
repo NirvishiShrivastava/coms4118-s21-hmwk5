@@ -114,7 +114,7 @@ static inline int ctor_fake_pmd(struct mm_struct *task_mm, struct task_struct *t
 		pr_info("Back from remap_fake_pte with return value: %d", ret);
 		if (ret)
 			return ret;
-	} while (fake_pmd_addr++, orig_pmd++, addr = next, addr != end);
+	} while (fake_pmd_addr, orig_pmd++, addr = next, addr != end);
 
 	return 0;
 }
@@ -166,7 +166,7 @@ static inline int ctor_fake_pud(struct mm_struct *task_mm, struct task_struct *t
 		pr_info("Back from ctor_fake_pmd with return value: %d", ret);
 		if (ret)
 			return ret;
-	} while (fake_pud_addr++, orig_pud++, addr = next, addr != end);
+	} while (fake_pud_addr, orig_pud++, addr = next, addr != end);
 
 	return 0;
 }
@@ -219,7 +219,7 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm, struct task_struct *t
 		pr_info("Back from ctor_fake_pud with return value: %d", ret);
 		if (ret)
 			return ret;
-	} while (fake_p4d_addr++, orig_p4d++, addr = next, addr != end);
+	} while (fake_p4d_addr, orig_p4d++, addr = next, addr != end);
 
 	return 0;
 }
@@ -314,7 +314,7 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 		pr_info("Back from ctor_fake_p4d with return value: %d", ret);
 		if (ret)
 			return ret;
-	} while (fake_pgd++, orig_pgd++, addr = next, addr != end);
+	} while (fake_pgd, orig_pgd++, addr = next, addr != end);
 
 	return 0;
 }
