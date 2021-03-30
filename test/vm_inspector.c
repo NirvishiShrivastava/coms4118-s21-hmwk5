@@ -79,7 +79,8 @@ int main(int argc, char *argv[])
     pid_t pid;
     int pgd_size, p4d_size, pud_size, pmd_size, pte_size, verbose, ret;
     unsigned long va_begin, va_end, current_va, *addr, *addr1, *addr2, *addr3, *addr4;
-    unsigned long *fake_pgd, *f_pgd, *f_p4d, *f_pud, *f_pmd, f_pte;
+    unsigned long *fake_pgd, *fake_p4ds, *fake_puds, *fake_pmds, *fake_ptes;
+    unsigned long *f_pgd, *f_p4d, *f_pud, *f_pmd, f_pte;
     
     if (argc == 4) {
         verbose = 0;
@@ -165,30 +166,65 @@ int main(int argc, char *argv[])
     printf("pgdir_shift: %d, p4d_shift: %d, pud_shift: %d, pmd_shift: %d, page_shift: %d \n\n", pgtbl_info.pgdir_shift, pgtbl_info.p4d_shift, pgtbl_info.pud_shift, pgtbl_info.pmd_shift, pgtbl_info.page_shift);
     
     
-    
+    printf("FAKE Addresses: %lu, %lu, %lu, %lu, %lu", pgtbl_args.fake_pgd,
+		    pgtbl_args.fake_p4ds, pgtbl_args.fake_puds, pgtbl_args.fake_pmds,
+		    pgtbl_args.page_table_addr);
     /* Calling Expose Page Table System Call */
     ret = expose_page_tbl(pid, &pgtbl_args);
     if (ret < 0) {
         fprintf(stderr, "Error : %s\n", strerror(errno));
         printf("Expose Page Table System Call Failed.\n");
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
     
     /* Printing the Page Entries */
-    
     fake_pgd = (unsigned long *)pgtbl_args.fake_pgd;
+    printf("\nPrinting Fake PGD Table:\n");
+    for (int i = 0; i < 512; i++) {
+	    if (fake_pgd[i])
+		    printf("PGD Index (%d): %lu\n", i, fake_pgd[i]);
+    }
     
+    fake_p4ds = (unsigned long *)pgtbl_args.fake_p4ds;
+    printf("Printing Fake P4Ds Table:\n");
+    for (int i = 0; i < 512; i++) {
+            if (fake_p4ds[i])
+                    printf("P4D Index (%d): %lu\n", i, fake_p4ds[i]);
+    }
+   
+    fake_puds = (unsigned long *)pgtbl_args.fake_puds;
+    printf("Printing Fake PUDs Table:\n");
+    for (int i = 0; i < 512; i++) {
+            if (fake_puds[i])
+                    printf("PUD Index (%d): %lu\n", i, fake_puds[i]);
+    }
+
+    fake_pmds = (unsigned long *)pgtbl_args.fake_pmds;
+    printf("Printing Fake PMDs Table:\n");
+    for (int i = 0; i < 512; i++) {
+            if (fake_pmds[i])
+                    printf("PMD Index (%d): %lu\n", i, fake_pmds[i]);
+    }
+
+    fake_ptes = (unsigned long *)pgtbl_args.page_table_addr;
+    printf("Printing Fake PTEs Table:\n");
+    for (int i = 0; i < 512; i++) {
+            if (fake_ptes[i])
+                    printf("PTE Index (%d): %lu\n", i, fake_ptes[i]);
+    }
+
+
     for (current_va = va_begin; current_va < va_end; current_va += PAGE_SIZE) {
         
         f_pgd = (unsigned long *)fake_pgd[page_index( current_va, pgtbl_info.pgdir_shift )];
         if(f_pgd == 0)
             continue;
         
-        f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
+        /*f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
         if (f_p4d == 0)
             continue;
-        
-        f_pud = (unsigned long *)f_p4d[page_index( current_va, pgtbl_info.pud_shift )];
+        */
+        f_pud = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.pud_shift )];
         if (f_pud == 0)
             continue;
         
