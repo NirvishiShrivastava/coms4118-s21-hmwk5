@@ -36,6 +36,7 @@ static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *
 		// spin_lock(&task_mm->page_table_lock);
 
 	pfn = pmd_pfn(*orig_pmd);
+	pr_info("PFN VALUE -------------> %lu",pfn);
 
 	pte_vma = find_vma(current->mm, fake_pte_addr);
 	if (pte_vma == NULL)
@@ -85,9 +86,16 @@ static inline int ctor_fake_pmd(struct mm_struct *task_mm, struct task_struct *t
 		// spin_lock(&task_mm->page_table_lock);
 
 	do {
+		pr_info("PMD START ADDRESS #############%lu",addr);
 		next = pmd_addr_end(addr, end);
+		pr_info("PMD NEXT ADDRESS %lu",next);
+		pr_info("PMD END ADDRESS ##############%lu",end);
+		pr_info("------> ORIGINAL PMD : ----> %lu",pmd_val(*orig_pmd));
 		if (pmd_none_or_clear_bad(orig_pmd))
+		{
+			pr_info("@@@@@@@@@@@@@@@@@@@@@ INSIDE PMD NONE CLEAR BAD @@@@@@@@@@@@@@@@@@@@");
 			continue;
+		}
 		pr_info("Calling remap_fake_pte");
 		ret = remap_fake_pte(task_mm, tsk, orig_pmd, fake_pmd_addr, 
 					temp_args, addr, next);
@@ -126,7 +134,10 @@ static inline int ctor_fake_pud(struct mm_struct *task_mm, struct task_struct *t
 		// spin_lock(&task_mm->page_table_lock);
 
 	do {
+		pr_info("PUD START ADDRESS ++++++++++++++%lu",addr);
 		next = pud_addr_end(addr, end);
+		pr_info("PUD NEXT ADDRESS %lu",next);
+		pr_info("PUD END ADDRESS ++++++++++++++%lu",end);
 		if (pud_none_or_clear_bad(orig_pud))
 			continue;
 		pr_info("Calling ctor_fake_pmd");
@@ -149,23 +160,22 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm, struct task_struct *t
 	if (!pgtable_l5_enabled()) {
 		ret = ctor_fake_pud(task_mm, tsk, (p4d_t *)orig_pgd, fake_pgd,
 				temp_args, addr, end);
-		if (ret)
-			return ret;
+		return ret;
 	}
 	
 	unsigned long next;
 	unsigned long *fake_pgd_entry, fake_p4d_addr;
 	p4d_t *orig_p4d;
 
-	pr_info("ADDR: %ld", addr);
-    pr_info("fake_pgd: %ld", fake_pgd);
+	pr_info("ADDR FROM P4D: %lu", addr);
+	pr_info("fake_pgd: %lu", fake_pgd);
 
 	// fake_pgd_entry = (unsigned long *) pgd_offset_pgd(fake_pgd, addr);
 	fake_pgd_entry = (unsigned long *) (fake_pgd +
 			pgd_index(addr) * sizeof(unsigned long));
 	orig_p4d = p4d_offset(orig_pgd, addr);
 
-	pr_info("fake_pgd_entry: %ld", (unsigned long) fake_pgd_entry);
+	pr_info("fake_pgd_entry: %lu", (unsigned long) fake_pgd_entry);
 
 	fake_p4d_addr = temp_args.fake_p4ds + fake_p4d_tbl_count * (PTRS_PER_P4D * sizeof(unsigned long));
 	fake_p4d_tbl_count++;
@@ -268,13 +278,13 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	
 	fake_pgd = temp_args.fake_pgd;
 	orig_pgd = pgd_offset(task_mm, addr);
-	pr_info("FAKE PGD: %ld", fake_pgd);
-    pr_info("ORIG PGD: %ld", pgd_val(*orig_pgd));
+	pr_info("FAKE PGD: %lu", fake_pgd);
+    pr_info("ORIG PGD: %lu", pgd_val(*orig_pgd));
 	do {
 		next = pgd_addr_end(addr, end);
-		pr_info("addr in main func: %ld", addr);
-		pr_info("next in main func: %ld", next);
-		pr_info("END %ld", end);
+		pr_info("addr in MAIN func: %lu $$$$$$$", addr);
+		pr_info("next in MAIN func: %lu", next);
+		pr_info("END in MAIN func: %lu $$$$$$$$", end);
 		if (pgd_none_or_clear_bad(orig_pgd))
 			continue;
 		pr_info("Calling ctor_fake_p4d");
