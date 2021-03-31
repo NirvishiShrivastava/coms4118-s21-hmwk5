@@ -72,10 +72,11 @@ static inline unsigned long page_index(unsigned long address, uint32_t shift)
     return (address >> shift) & (PTR_PER_PXX - 1);
 }
 struct s {
-	int a[9999];
+    int a[9999];
 };
 
-int main(int argc, char *argv[])
+
+int print_pgtbl_range(unsigned long start, unsigned long end)
 {
     struct pagetable_layout_info pgtbl_info;
     struct expose_pgtbl_args pgtbl_args;
@@ -88,13 +89,13 @@ int main(int argc, char *argv[])
     struct s *ptr = malloc(sizeof(struct s));
     verbose = 1;
     pid = -1;
-    va_begin = (unsigned long) ptr;
-    va_end = (unsigned long) ptr + sizeof(struct s);
+    va_begin = start;
+    va_end = end;
     
    
-    printf("%d, %ld, %ld\n", pid, va_begin, va_end);
+    //printf("\n[PID = %d, START V.ADDR = %lu, END V.ADDR = %lu]\n", pid, va_begin, va_end);
     if(verbose)
-	    printf("Verbose is set\n");
+        //printf("Verbose is set\n");
 
     /* Assigning begin and end VA */
     pgtbl_args.begin_vaddr = va_begin;
@@ -116,7 +117,7 @@ int main(int argc, char *argv[])
    
     addr1 = mmap(NULL, p4d_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr1 == MAP_FAILED) {
-	free(addr);
+    free(addr);
         fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
@@ -125,8 +126,8 @@ int main(int argc, char *argv[])
     
     addr2 = mmap(NULL, pud_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr2 == MAP_FAILED) {
-	free(addr);
-	munmap(addr1,p4d_size);
+    free(addr);
+    munmap(addr1,p4d_size);
         fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
@@ -134,9 +135,9 @@ int main(int argc, char *argv[])
     pgtbl_args.fake_puds = (unsigned long)addr2;
     addr3 = mmap(NULL, pmd_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr3 == MAP_FAILED) {
-	free(addr);
-	munmap(addr1,p4d_size);
-	munmap(addr2,pud_size);
+    free(addr);
+    munmap(addr1,p4d_size);
+    munmap(addr2,pud_size);
         fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
@@ -144,10 +145,10 @@ int main(int argc, char *argv[])
     pgtbl_args.fake_pmds = (unsigned long)addr3;
     addr4 = mmap(NULL, pte_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr4 == MAP_FAILED) {
-	free(addr);
-	munmap(addr1,p4d_size);
-	munmap(addr2,pud_size);
-	munmap(addr3,pmd_size);
+    free(addr);
+    munmap(addr1,p4d_size);
+    munmap(addr2,pud_size);
+    munmap(addr3,pmd_size);
         fprintf(stderr, "Error : %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
@@ -157,71 +158,41 @@ int main(int argc, char *argv[])
     /* Calling Get Page Table Layout System Call */
     ret = get_pagetbl_layout(&pgtbl_info);
     if (ret < 0) {
-	free(addr);
-	munmap(addr1,p4d_size);
-	munmap(addr2,pud_size);
-	munmap(addr3,pmd_size);
-	munmap(addr4,pte_size);
+    free(addr);
+    munmap(addr1,p4d_size);
+    munmap(addr2,pud_size);
+    munmap(addr3,pmd_size);
+    munmap(addr4,pte_size);
         fprintf(stderr, "Error : %s\n", strerror(errno));
         printf("Get Page Table Layout System Call Failed.\n");
         exit(EXIT_FAILURE);
     }
     
-    printf("pgdir_shift: %d, p4d_shift: %d, pud_shift: %d, pmd_shift: %d, page_shift: %d \n\n", pgtbl_info.pgdir_shift, pgtbl_info.p4d_shift, pgtbl_info.pud_shift, pgtbl_info.pmd_shift, pgtbl_info.page_shift);
+    /*printf("pgdir_shift: %d, p4d_shift: %d, pud_shift: %d, pmd_shift: %d, page_shift: %d \n\n", pgtbl_info.pgdir_shift, pgtbl_info.p4d_shift, pgtbl_info.pud_shift, pgtbl_info.pmd_shift, pgtbl_info.page_shift);
+    */
     
-    
-    printf("FAKE Addresses: %lu, %lu, %lu, %lu, %lu", pgtbl_args.fake_pgd,
-		    pgtbl_args.fake_p4ds, pgtbl_args.fake_puds, pgtbl_args.fake_pmds,
-		    pgtbl_args.page_table_addr);
+    /*printf("\nFAKE Addresses: %lu, %lu, %lu, %lu, %lu", pgtbl_args.fake_pgd,
+            pgtbl_args.fake_p4ds, pgtbl_args.fake_puds, pgtbl_args.fake_pmds,
+            pgtbl_args.page_table_addr);*/
     /* Calling Expose Page Table System Call */
     ret = expose_page_tbl(pid, &pgtbl_args);
     if (ret < 0) {
-	free(addr);
-	munmap(addr1,p4d_size);
-	munmap(addr2,pud_size);
-	munmap(addr3,pmd_size);
-	munmap(addr4,pte_size);
+    free(addr);
+    munmap(addr1,p4d_size);
+    munmap(addr2,pud_size);
+    munmap(addr3,pmd_size);
+    munmap(addr4,pte_size);
         fprintf(stderr, "Error : %s\n", strerror(errno));
         printf("Expose Page Table System Call Failed.\n");
         exit(EXIT_FAILURE);
     }
     
-    /* Printing the Page Entries */
+    /* Page Entries */
     fake_pgd = (unsigned long *)pgtbl_args.fake_pgd;
-    printf("\nPrinting Fake PGD Table:\n");
-    for (int i = 0; i < 512; i++) {
-	    if (fake_pgd[i])
-		    printf("PGD Index (%d): %lu\n", i, fake_pgd[i]);
-    }
-    
     fake_p4ds = (unsigned long *)pgtbl_args.fake_p4ds;
-    printf("Printing Fake P4Ds Table:\n");
-    for (int i = 0; i < 512; i++) {
-            if (fake_p4ds[i])
-                    printf("P4D Index (%d): %lu\n", i, fake_p4ds[i]);
-    }
-   
     fake_puds = (unsigned long *)pgtbl_args.fake_puds;
-    printf("Printing Fake PUDs Table:\n");
-    for (int i = 0; i < 512; i++) {
-            if (fake_puds[i])
-                    printf("PUD Index (%d): %lu\n", i, fake_puds[i]);
-    }
-
     fake_pmds = (unsigned long *)pgtbl_args.fake_pmds;
-    printf("Printing Fake PMDs Table:\n");
-    for (int i = 0; i < 512; i++) {
-            if (fake_pmds[i])
-                    printf("PMD Index (%d): %lu\n", i, fake_pmds[i]);
-    }
-
     fake_ptes = (unsigned long *)pgtbl_args.page_table_addr;
-    printf("Printing Fake PTEs Table:\n");
-    for (int i = 0; i < 512; i++) {
-            if (fake_ptes[i])
-                    printf("PTE Index (%d): %lu\n", i, fake_ptes[i]);
-    }
-
 
     for (current_va = va_begin; current_va < va_end; current_va += PAGE_SIZE) {
         
@@ -265,3 +236,97 @@ int main(int argc, char *argv[])
     return 0;
     
 }
+
+int main(int argc, char *argv[])
+{
+   
+    printf("\n============================================\n");
+    printf("TEST #1: MALLOC\n");
+    printf("============================================\n\n");
+    
+    printf("virtual_addr   physical_addr Y D W U\n");
+    struct s *ptr = malloc(sizeof(struct s));
+    print_pgtbl_range((unsigned long) ptr, (unsigned long) ptr + sizeof(struct s));
+
+    printf("\n============================================\n");
+    printf("TEST #2: WRITE FAULT\n");
+    printf("============================================\n\n");
+    
+    struct s *ptr2 = malloc(sizeof(struct s));
+    printf("Before Write Fault\n");
+    printf("virtual_addr   physical_addr Y D W U\n");
+    print_pgtbl_range((unsigned long) ptr2, (unsigned long) ptr2 + sizeof(struct s));
+    for (unsigned long i = 0; i < 9999; ++i)
+        ptr2->a[i] = 5;
+        
+    printf("\nAfter Write Fault\n");
+    printf("virtual_addr   physical_addr Y D W U\n");
+    print_pgtbl_range((unsigned long) ptr2, (unsigned long) ptr2 + sizeof(struct s));
+
+    printf("\n============================================\n");
+    printf("TEST #3: READ FAULT\n");
+    printf("============================================\n\n");
+    
+    struct s *ptr3 = malloc(sizeof(struct s));
+    int temp;
+    printf("Before Read Fault\n");
+    printf("virtual_addr   physical_addr Y D W U\n");
+    print_pgtbl_range((unsigned long) ptr3,(unsigned long) ptr3 + sizeof(struct s));
+    for (unsigned long i = 0; i < 9999; ++i)
+        temp = ptr3->a[i];
+    printf("\nAfter Read Fault\n");
+    printf("virtual_addr   physical_addr Y D W U\n");
+    print_pgtbl_range((unsigned long) ptr3, (unsigned long) ptr3 + sizeof(struct s));
+    for (unsigned long i = 0; i < 9999; ++i)
+        ptr3->a[i] = 5;
+    printf("\nAfter Write\n");
+    printf("virtual_addr   physical_addr Y D W U\n");
+    print_pgtbl_range((unsigned long) ptr3, (unsigned long) ptr3 + sizeof(struct s));
+
+    printf("\n============================================\n");
+    printf("TEST #4: WRITE (NO PAGE FAULT)\n");
+    printf("============================================\n\n");
+    
+    struct s *ptr4 = malloc(sizeof(struct s));
+    for (unsigned long i = 0; i < 9999; ++i)
+        ptr4->a[i] = 5;
+    printf("Before Write\n");
+    printf("virtual_addr   physical_addr Y D W U\n");
+    print_pgtbl_range((unsigned long) ptr4, (unsigned long) ptr4 + sizeof(struct s));
+    for (unsigned long i = 0; i < 9999; ++i)
+        ptr4->a[i] = 15;
+    printf("\nAfter Write\n");
+    printf("virtual_addr   physical_addr Y D W U\n");
+    print_pgtbl_range((unsigned long) ptr4, (unsigned long) ptr4 + sizeof(struct s));
+
+    printf("\n============================================\n");
+    printf("TEST #5: COPY ON WRITE\n");
+    printf("============================================\n");
+    
+    struct s *ptr5 = malloc(sizeof(struct s));
+    for (unsigned long i = 0; i < 9999; ++i)
+        ptr5->a[i] = 5;
+    printf("\nParent\n");
+    printf("virtual_addr   physical_addr Y D W U\n");
+    print_pgtbl_range((unsigned long) ptr5, (unsigned long) ptr5 + sizeof(struct s));
+    if (fork() == 0) {
+        printf("\nChild\n");
+    	printf("virtual_addr   physical_addr Y D W U\n");
+        print_pgtbl_range((unsigned long) ptr5, (unsigned long) ptr5 + sizeof(struct s));
+        exit(1);
+    }
+
+    else
+        wait(NULL);
+
+    free(ptr);
+    free(ptr2);
+    free(ptr3);
+    free(ptr4);
+    free(ptr5);
+
+    return 0;
+}
+
+
+
