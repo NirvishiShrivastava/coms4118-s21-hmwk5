@@ -93,9 +93,6 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
     va_end = end;
     
    
-    //printf("\n[PID = %d, START V.ADDR = %lu, END V.ADDR = %lu]\n", pid, va_begin, va_end);
-    if(verbose)
-        //printf("Verbose is set\n");
 
     /* Assigning begin and end VA */
     pgtbl_args.begin_vaddr = va_begin;
@@ -168,12 +165,6 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
         exit(EXIT_FAILURE);
     }
     
-    /*printf("pgdir_shift: %d, p4d_shift: %d, pud_shift: %d, pmd_shift: %d, page_shift: %d \n\n", pgtbl_info.pgdir_shift, pgtbl_info.p4d_shift, pgtbl_info.pud_shift, pgtbl_info.pmd_shift, pgtbl_info.page_shift);
-    */
-    
-    /*printf("\nFAKE Addresses: %lu, %lu, %lu, %lu, %lu", pgtbl_args.fake_pgd,
-            pgtbl_args.fake_p4ds, pgtbl_args.fake_puds, pgtbl_args.fake_pmds,
-            pgtbl_args.page_table_addr);*/
     /* Calling Expose Page Table System Call */
     ret = expose_page_tbl(pid, &pgtbl_args);
     if (ret < 0) {
@@ -189,11 +180,7 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
     
     /* Page Entries */
     fake_pgd = (unsigned long *)pgtbl_args.fake_pgd;
-    fake_p4ds = (unsigned long *)pgtbl_args.fake_p4ds;
-    fake_puds = (unsigned long *)pgtbl_args.fake_puds;
-    fake_pmds = (unsigned long *)pgtbl_args.fake_pmds;
-    fake_ptes = (unsigned long *)pgtbl_args.page_table_addr;
-
+    
     for (current_va = va_begin; current_va < va_end; current_va += PAGE_SIZE) {
         
         f_pgd = (unsigned long *)fake_pgd[page_index( current_va, pgtbl_info.pgdir_shift )];
@@ -279,10 +266,7 @@ int main(int argc, char *argv[])
     print_pgtbl_range((unsigned long) ptr3, (unsigned long) ptr3 + sizeof(struct s));
     for (unsigned long i = 0; i < 9999; ++i)
         ptr3->a[i] = 5;
-    printf("\nAfter Write\n");
-    printf("virtual_addr   physical_addr Y D W U\n");
-    print_pgtbl_range((unsigned long) ptr3, (unsigned long) ptr3 + sizeof(struct s));
-
+    
     printf("\n============================================\n");
     printf("TEST #4: WRITE (NO PAGE FAULT)\n");
     printf("============================================\n\n");
@@ -313,6 +297,13 @@ int main(int argc, char *argv[])
         printf("\nChild\n");
     	printf("virtual_addr   physical_addr Y D W U\n");
         print_pgtbl_range((unsigned long) ptr5, (unsigned long) ptr5 + sizeof(struct s));
+
+	for (unsigned long i = 0; i < 9999; ++i)
+		ptr5->a[i] = 5;
+	printf("\nAfter Child writes\n");
+        printf("virtual_addr   physical_addr Y D W U\n");
+        print_pgtbl_range((unsigned long) ptr5, (unsigned long) ptr5 + sizeof(struct s));
+
         exit(1);
     }
 
