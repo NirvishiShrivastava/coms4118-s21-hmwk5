@@ -48,8 +48,10 @@ static inline int remap_fake_pte(struct mm_struct *task_mm, struct task_struct *
 		// spin_lock(&task_mm->page_table_lock);
 
 	pfn = pmd_pfn(*orig_pmd);
+	//pfn = page_to_pfn(pmd_page(*orig_pmd));
+	//unsigned long pfn2 = __phys_to_pfn(pmd_val(*orig_pmd));
+	//pr_info("PMD Value: %lu", pfn2);
 	pr_info("PFN VALUE -------------> %lu",pfn);
-
 	pte_vma = find_vma(current->mm, fake_pte_addr);
 	if (pte_vma == NULL)
 		return -EFAULT;
@@ -102,8 +104,10 @@ static inline int ctor_fake_pmd(struct mm_struct *task_mm, struct task_struct *t
 		next = pmd_addr_end(addr, end);
 		pr_info("PMD NEXT ADDRESS %lu",next);
 		pr_info("PMD END ADDRESS ##############%lu",end);
-		pr_info("------> ORIGINAL PMD : ----> %lu",pmd_val(*orig_pmd));
-		if (pmd_none_or_clear_bad(orig_pmd))
+		//pr_info("------> ORIGINAL PMD : ----> %lu",pmd_val(*orig_pmd));
+		
+		//if (pmd_none_or_clear_bad(orig_pmd))
+		if (pmd_none(*orig_pmd) || unlikely(pmd_bad(*orig_pmd)))
 		{
 			pr_info("@@@@@@@@@@@@@@@@@@@@@ INSIDE PMD NONE CLEAR BAD @@@@@@@@@@@@@@@@@@@@");
 			continue;
@@ -114,7 +118,7 @@ static inline int ctor_fake_pmd(struct mm_struct *task_mm, struct task_struct *t
 		pr_info("Back from remap_fake_pte with return value: %d", ret);
 		if (ret)
 			return ret;
-	} while (fake_pmd_addr, orig_pmd++, addr = next, addr != end);
+	} while (fake_pmd_addr, orig_pmd++, addr = next, addr < end);
 
 	return 0;
 }
@@ -158,15 +162,17 @@ static inline int ctor_fake_pud(struct mm_struct *task_mm, struct task_struct *t
 		next = pud_addr_end(addr, end);
 		pr_info("PUD NEXT ADDRESS %lu",next);
 		pr_info("PUD END ADDRESS ++++++++++++++%lu",end);
-		if (pud_none_or_clear_bad(orig_pud))
+		if (pud_none_or_clear_bad(orig_pud)) {
+			pr_info("---------- ORIG PUD: %lu", pud_val(*orig_pud));
 			continue;
+		}
 		pr_info("Calling ctor_fake_pmd");
 		ret = ctor_fake_pmd(task_mm, tsk, orig_pud, fake_pud_addr,
 						temp_args, addr, next);
 		pr_info("Back from ctor_fake_pmd with return value: %d", ret);
 		if (ret)
 			return ret;
-	} while (fake_pud_addr, orig_pud++, addr = next, addr != end);
+	} while (fake_pud_addr, orig_pud++, addr = next, addr < end);
 
 	return 0;
 }
@@ -219,7 +225,7 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm, struct task_struct *t
 		pr_info("Back from ctor_fake_pud with return value: %d", ret);
 		if (ret)
 			return ret;
-	} while (fake_p4d_addr, orig_p4d++, addr = next, addr != end);
+	} while (fake_p4d_addr, orig_p4d++, addr = next, addr < end);
 
 	return 0;
 }
@@ -300,13 +306,16 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	fake_pgd = temp_args.fake_pgd;
 	orig_pgd = pgd_offset(task_mm, addr);
 	pr_info("FAKE PGD: %lu", fake_pgd);
-    pr_info("ORIG PGD: %lu", pgd_val(*orig_pgd));
 	do {
 		next = pgd_addr_end(addr, end);
 		pr_info("addr in MAIN func: %lu $$$$$$$", addr);
 		pr_info("next in MAIN func: %lu", next);
 		pr_info("END in MAIN func: %lu $$$$$$$$", end);
-		if (pgd_none_or_clear_bad(orig_pgd))
+		pr_info("ORIG PGD: %lu", pgd_val(*orig_pgd));
+		pr_info("Curr PGD Val: %lu", pgd_val(*pgd_offset(task_mm, addr)));
+		//if (pgd_none_or_clear_bad(orig_pgd))
+		if (pgd_none(*orig_pgd) || unlikely(pgd_bad(*orig_pgd))
+				|| pgd_val(*orig_pgd) == 0)
 			continue;
 		pr_info("Calling ctor_fake_p4d");
 		ret = ctor_fake_p4d(task_mm, task, orig_pgd, fake_pgd, temp_args,
@@ -314,7 +323,11 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 		pr_info("Back from ctor_fake_p4d with return value: %d", ret);
 		if (ret)
 			return ret;
-	} while (fake_pgd, orig_pgd++, addr = next, addr != end);
-
+	} while (fake_pgd, orig_pgd++, addr = next, addr < end);
+	
+	pr_info("Final Tables Count\n");
+	pr_info("p4d:%d, pud:%d, pmd:%d, pte:%d",
+			fake_p4d_tbl_count, fake_pud_tbl_count,
+			fake_pmd_tbl_count, fake_pte_tbl_count);
 	return 0;
 }
