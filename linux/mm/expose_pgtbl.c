@@ -310,6 +310,9 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	addr = temp_args.begin_vaddr;
 	end = temp_args.end_vaddr;
 
+	if (addr >= end)
+		return -EINVAL;
+
 	fake_pgd = temp_args.fake_pgd;
 	orig_pgd = pgd_offset(task_mm, addr);
 	pr_info("FAKE PGD: %lu", fake_pgd);
