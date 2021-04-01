@@ -109,13 +109,30 @@ int main(int argc, char *argv[])
     pgtbl_args.begin_vaddr = va_begin;
     pgtbl_args.end_vaddr = va_end;
 
+    /* Calling Get Page Table Layout System Call */
+    ret = get_pagetbl_layout(&pgtbl_info);
+    if (ret < 0) {
+        fprintf(stderr, "Error : %s\n", strerror(errno));
+        printf("Get Page Table Layout System Call Failed.\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    printf("pgdir_shift: %d, p4d_shift: %d, pud_shift: %d, pmd_shift: %d, page_shift: %d \n\n", 
+            pgtbl_info.pgdir_shift, pgtbl_info.p4d_shift,
+            pgtbl_info.pud_shift, pgtbl_info.pmd_shift,
+            pgtbl_info.page_shift);
+
     pgd_size = 512 * sizeof(unsigned long);
-    p4d_size = 1 * pgd_size;
+    /* Check if paging level is 4 or 5 */
+    if (pgtbl_info.pgdir_shift == pgtbl_info.p4d_shift)
+        p4d_size = 1 * pgd_size;
+    else
+        p4d_size = 512 * pgd_size;
+    
     pud_size = 512 * p4d_size;
     pmd_size = 512 * pud_size;
     pte_size = 1 * pmd_size;
-    
-    
+
     /* Allocating memory for page tables */
     addr = (unsigned long *)malloc(pgd_size);
     if (!addr)
@@ -162,22 +179,6 @@ int main(int argc, char *argv[])
     }
 
     pgtbl_args.page_table_addr = (unsigned long)addr4;
-    
-    /* Calling Get Page Table Layout System Call */
-    ret = get_pagetbl_layout(&pgtbl_info);
-    if (ret < 0) {
-	free(addr);
-	munmap(addr1,p4d_size);
-	munmap(addr2,pud_size);
-	munmap(addr3,pmd_size);
-	munmap(addr4,pte_size);
-        fprintf(stderr, "Error : %s\n", strerror(errno));
-        printf("Get Page Table Layout System Call Failed.\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    printf("pgdir_shift: %d, p4d_shift: %d, pud_shift: %d, pmd_shift: %d, page_shift: %d \n\n", pgtbl_info.pgdir_shift, pgtbl_info.p4d_shift, pgtbl_info.pud_shift, pgtbl_info.pmd_shift, pgtbl_info.page_shift);
-    
     
     printf("FAKE Addresses: %lu, %lu, %lu, %lu, %lu", pgtbl_args.fake_pgd,
 		    pgtbl_args.fake_p4ds, pgtbl_args.fake_puds, pgtbl_args.fake_pmds,
@@ -238,16 +239,20 @@ int main(int argc, char *argv[])
 	    if(f_pgd == 0)
 		    goto verbose_continue;
 	    
-	    /*f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
-	     * if (f_p4d == 0)
-	     *     goto verbose_continue;
-	     *
-	     */
+	    if (pgtbl_info.pgdir_shift != pgtbl_info.p4d_shift) {
+            	f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
+            	if (f_p4d == 0)
+                	goto verbose_continue;
 
-	    f_pud = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.pud_shift )];
-	    if (f_pud == 0)
-		    goto verbose_continue;
-
+            	f_pud = (unsigned long *)f_p4d[page_index( current_va, pgtbl_info.pud_shift )];
+            	if (f_pud == 0)
+                	goto verbose_continue;
+            } else {
+            	f_pud = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.pud_shift )];
+            	if (f_pud == 0)
+                	goto verbose_continue;
+      	    }
+	    
 	    f_pmd = (unsigned long *)f_pud[page_index( current_va, pgtbl_info.pmd_shift )];
 	    if (f_pmd == 0)
 		    goto verbose_continue;
