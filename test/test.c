@@ -98,6 +98,7 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
     pgtbl_args.begin_vaddr = va_begin;
     pgtbl_args.end_vaddr = va_end;
 
+    /* TODO: get these values using get_pagetable_layout system call */
     pgd_size = 512 * sizeof(unsigned long);
     p4d_size = 1 * pgd_size;
     pud_size = 512 * p4d_size;
@@ -114,9 +115,9 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
    
     addr1 = mmap(NULL, p4d_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr1 == MAP_FAILED) {
-    free(addr);
-        fprintf(stderr, "Error : %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+    	free(addr);
+    	fprintf(stderr, "Error : %s\n", strerror(errno));
+	exit(EXIT_FAILURE);
     }
      
     pgtbl_args.fake_p4ds = (unsigned long)addr1;
@@ -175,7 +176,8 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
     munmap(addr4,pte_size);
         fprintf(stderr, "Error : %s\n", strerror(errno));
         printf("Expose Page Table System Call Failed.\n");
-        exit(EXIT_FAILURE);
+        /* TODO: return instead of exiting */
+	exit(EXIT_FAILURE);
     }
     
     /* Page Entries */
@@ -233,6 +235,7 @@ int main(int argc, char *argv[])
     
     printf("virtual_addr   physical_addr Y D W U\n");
     struct s *ptr = malloc(sizeof(struct s));
+    /* TODO: reduce end_addr by 1 */
     print_pgtbl_range((unsigned long) ptr, (unsigned long) ptr + sizeof(struct s));
 
     printf("\n============================================\n");
@@ -304,7 +307,7 @@ int main(int argc, char *argv[])
         printf("virtual_addr   physical_addr Y D W U\n");
         print_pgtbl_range((unsigned long) ptr5, (unsigned long) ptr5 + sizeof(struct s));
 
-        exit(1);
+        //exit(1);
     }
 
     else
