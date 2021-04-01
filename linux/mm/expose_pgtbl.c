@@ -5,6 +5,7 @@
 #include <linux/expose_pgtbl.h>
 #include <linux/sched/mm.h>
 #include <linux/pid.h>
+#include <linux/mm.h>
 
 static int fake_p4d_tbl_count;
 static int fake_pud_tbl_count;
@@ -280,6 +281,12 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	unsigned long fake_pgd;
 	pgd_t *orig_pgd;
 	int ret;
+	unsigned long total_p4d_size, total_pud_size;
+	unsigned long total_pmd_size, total_pte_size;
+	unsigned long used_p4d_size, used_pud_size;
+	unsigned long used_pmd_size, used_pte_size;
+	unsigned long begin_p4d_clear, begin_pud_clear;
+	unsigned long begin_pmd_clear, begin_pte_clear;
 
 	fake_p4d_tbl_count = 0;
 	fake_pud_tbl_count = 0;
@@ -341,5 +348,40 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	pr_info("p4d:%d, pud:%d, pmd:%d, pte:%d",
 			fake_p4d_tbl_count, fake_pud_tbl_count,
 			fake_pmd_tbl_count, fake_pte_tbl_count);
+
+	/* Clearing unused p4d tables */
+	if (pgtable_l5_enabled()) {
+		used_p4d_size = fake_p4d_tbl_count * PTRS_PER_P4D * sizeof(unsigned long);
+		total_p4d_size = PTRS_PER_PGD * PTRS_PER_P4D * sizeof(unsigned long);
+		begin_p4d_clear = temp_args.fake_p4ds + used_p4d_size;
+		if (do_munmap(task_mm, begin_p4d_clear,
+			(int) (total_p4d_size - used_p4d_size), NULL))
+			return -ENOMEM;
+	}
+
+	/* Clearing unused pud tables */
+	used_pud_size = fake_pud_tbl_count * PTRS_PER_PUD * sizeof(unsigned long);
+	total_pud_size = PTRS_PER_PGD * PTRS_PER_P4D * PTRS_PER_PUD * sizeof(unsigned long);
+	begin_pud_clear = temp_args.fake_puds + used_pud_size;
+	if (do_munmap(task_mm, begin_pud_clear,
+		(int) (total_pud_size - used_pud_size), NULL))
+		return -ENOMEM;
+
+	/* Clearing unused pmd tables */
+	used_pmd_size = fake_pmd_tbl_count * PTRS_PER_PMD * sizeof(unsigned long);
+	total_pmd_size = PTRS_PER_PMD * total_pud_size;
+	begin_pmd_clear = temp_args.fake_pmds + used_pmd_size;
+	if (do_munmap(task_mm, begin_pmd_clear,
+		(int) (total_pmd_size - used_pmd_size), NULL))
+		return -ENOMEM;
+
+	/* Clearing unused pte tables */
+	used_pte_size = fake_pte_tbl_count * PTRS_PER_PTE * sizeof(unsigned long);
+	total_pte_size = 1 * total_pmd_size;
+	begin_pte_clear = temp_args.page_table_addr + used_pte_size;
+	if (do_munmap(task_mm, begin_pte_clear,
+		(int) (total_pte_size - used_pte_size), NULL))
+		return -ENOMEM;
+
 	return 0;
 }
