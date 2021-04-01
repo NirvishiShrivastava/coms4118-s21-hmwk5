@@ -13,7 +13,8 @@
  };
 
 /*
- * Struct to map a target process's page table into the current process's address space.
+ * Struct to map a target process's page table into
+ * the current * process's address space.
  */
 struct expose_pgtbl_args {
         unsigned long fake_pgd;
