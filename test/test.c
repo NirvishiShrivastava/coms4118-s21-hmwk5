@@ -72,9 +72,6 @@ static inline unsigned long page_index(unsigned long address, uint32_t shift)
 {
     return (address >> shift) & (PTR_PER_PXX - 1);
 }
-struct temp {
-    int a[9999];
-};
 
 
 int get_pagetable_range(unsigned long start, unsigned long end)
@@ -183,19 +180,19 @@ int get_pagetable_range(unsigned long start, unsigned long end)
             if(f_pgd == 0)
                     goto verbose_continue;
     
-	    if (pgtbl_info.pgdir_shift != pgtbl_info.p4d_shift) {
-            	f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
-            	if (f_p4d == 0)
-                	goto verbose_continue;
+        if (pgtbl_info.pgdir_shift != pgtbl_info.p4d_shift) {
+                f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
+                if (f_p4d == 0)
+                    goto verbose_continue;
 
-            	f_pud = (unsigned long *)f_p4d[page_index( current_va, pgtbl_info.pud_shift )];
-            	if (f_pud == 0)
-                	goto verbose_continue;
+                f_pud = (unsigned long *)f_p4d[page_index( current_va, pgtbl_info.pud_shift )];
+                if (f_pud == 0)
+                    goto verbose_continue;
             } else {
-            	f_pud = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.pud_shift )];
-            	if (f_pud == 0)
-                	goto verbose_continue;
-      	    }
+                f_pud = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.pud_shift )];
+                if (f_pud == 0)
+                    goto verbose_continue;
+            }
 
             f_pmd = (unsigned long *)f_pud[page_index( current_va, pgtbl_info.pmd_shift )]; 
             if (f_pmd == 0)
@@ -231,16 +228,18 @@ verbose_continue:
 int main(int argc, char *argv[])
 {
     int ret, read_var;
+    int size_ten_pages = 4096 * 10;
+    int num = size_ten_pages/sizeof(int);
 
     printf("\n============================================\n");
     printf("TESTCASE 1: Allocating heap memory but not using it.\n");
     printf("============================================\n\n");
     
     printf("virtual_addr   physical_addr Y D W U\n");
-    struct temp *test1 = malloc(sizeof(struct temp));
+    int *test1 = (int *) malloc(size_ten_pages);
     if (!test1)
         return -ENOMEM;
-    ret = get_pagetable_range((unsigned long) test1, (unsigned long) test1 + sizeof(struct temp) - 1);
+    ret = get_pagetable_range((unsigned long) test1, (unsigned long) test1 + num * sizeof(int) - 1);
 
     if (ret < 0) {
         free(test1);
@@ -251,7 +250,7 @@ int main(int argc, char *argv[])
     printf("TESTCASE 2: Write Fault\n");
     printf("============================================\n\n");
     
-    struct temp *test2 = malloc(sizeof(struct temp));
+    int *test2 = (int *) malloc(size_ten_pages);
     if (!test2) {
         free(test1);
         return -ENOMEM;
@@ -259,19 +258,19 @@ int main(int argc, char *argv[])
 
     printf("Before Write Fault\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    ret = get_pagetable_range((unsigned long) test2, (unsigned long) test2 + sizeof(struct temp) - 1);
+    ret = get_pagetable_range((unsigned long) test2, (unsigned long) test2 + num * sizeof(int) - 1);
     if (ret < 0) {
         free(test1);
         free(test2);
         return -1;
     }
 
-    for (unsigned long i = 0; i < 9999; ++i)
-        test2->a[i] = 5;
+    for (unsigned long i = 0; i < num; ++i)
+        test2[i] = 5;
         
     printf("\nAfter Write Fault\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    ret = get_pagetable_range((unsigned long) test2, (unsigned long) test2 + sizeof(struct temp) - 1);
+    ret = get_pagetable_range((unsigned long) test2, (unsigned long) test2 + num * sizeof(int) - 1);
     if (ret < 0) {
         free(test1);
         free(test2);
@@ -282,7 +281,7 @@ int main(int argc, char *argv[])
     printf("TESTCASE 3: Read Fault followed by a Write\n");
     printf("============================================\n\n");
     
-    struct temp *test3 = malloc(sizeof(struct temp));
+    int *test3 = (int *) malloc(size_ten_pages);
     if (!test3) {
         free(test1);
         free(test2);
@@ -291,7 +290,7 @@ int main(int argc, char *argv[])
 
     printf("Before Read Fault\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    ret = get_pagetable_range((unsigned long) test3,(unsigned long) test3 + sizeof(struct temp) - 1);
+    ret = get_pagetable_range((unsigned long) test3, (unsigned long) test3 + num * sizeof(int) - 1);
     if (ret < 0) {
         free(test1);
         free(test2);
@@ -299,12 +298,12 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    for (unsigned long i = 0; i < 9999; ++i)
-        read_var = test3->a[i];
+    for (unsigned long i = 0; i < num; ++i)
+        read_var = test3[i];
 
     printf("\nAfter Read Fault\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    ret = get_pagetable_range((unsigned long) test3, (unsigned long) test3 + sizeof(struct temp) - 1);
+    ret = get_pagetable_range((unsigned long) test3, (unsigned long) test3 + num * sizeof(int) - 1);
     if (ret < 0) {
         free(test1);
         free(test2);
@@ -312,11 +311,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    for (unsigned long i = 0; i < 9999; ++i)
-        test3->a[i] = 5;
+    for (unsigned long i = 0; i < num; ++i)
+        test3[i] = 5;
     printf("\nAfter Write\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    ret = get_pagetable_range((unsigned long) test3, (unsigned long) test3 + sizeof(struct temp) - 1);
+    ret = get_pagetable_range((unsigned long) test3, (unsigned long) test3 + num * sizeof(int) - 1);
     if (ret < 0) {
         free(test1);
         free(test2);
@@ -328,7 +327,7 @@ int main(int argc, char *argv[])
     printf("TESTCASE 4: Write (without fault)\n");
     printf("============================================\n\n");
     
-    struct temp *test4 = malloc(sizeof(struct temp));
+    int *test4 = (int *) malloc(size_ten_pages);
     if (!test4) {
         free(test1);
         free(test2);
@@ -336,11 +335,11 @@ int main(int argc, char *argv[])
         return -ENOMEM;
     }
 
-    for (unsigned long i = 0; i < 9999; ++i)
-        test4->a[i] = 5;
+    for (unsigned long i = 0; i < num; ++i)
+        test4[i] = 5;
     printf("Before Write\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    ret = get_pagetable_range((unsigned long) test4, (unsigned long) test4 + sizeof(struct temp) - 1);
+    ret = get_pagetable_range((unsigned long) test4, (unsigned long) test4 + num * sizeof(int) - 1);
     if (ret < 0) {
         free(test1);
         free(test2);
@@ -349,11 +348,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    for (unsigned long i = 0; i < 9999; ++i)
-        test4->a[i] = 15;
+    for (unsigned long i = 0; i < num; ++i)
+        test4[i] = 15;
     printf("\nAfter Write\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    ret = get_pagetable_range((unsigned long) test4, (unsigned long) test4 + sizeof(struct temp) - 1);
+    ret = get_pagetable_range((unsigned long) test4, (unsigned long) test4 + num * sizeof(int) - 1);
     if (ret < 0) {
         free(test1);
         free(test2);
@@ -366,7 +365,7 @@ int main(int argc, char *argv[])
     printf("TESTCASE 5: Copy On Write\n");
     printf("============================================\n");
     
-    struct temp *test5 = malloc(sizeof(struct temp));
+    int *test5 = (int *) malloc(size_ten_pages);
     if (!test5) {
         free(test1);
         free(test2);
@@ -375,11 +374,12 @@ int main(int argc, char *argv[])
         return -ENOMEM;
     }
 
-    for (unsigned long i = 0; i < 9999; ++i)
-        test5->a[i] = 5;
+    for (unsigned long i = 0; i < num; ++i)
+        test5[i] = 5;
+
     printf("\nParent\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    ret = get_pagetable_range((unsigned long) test5, (unsigned long) test5 + sizeof(struct temp) - 1);
+    ret = get_pagetable_range((unsigned long) test5, (unsigned long) test5 + num * sizeof(int) - 1);
     if (ret < 0) {
         free(test1);
         free(test2);
@@ -392,7 +392,7 @@ int main(int argc, char *argv[])
     if (fork() == 0) {
         printf("\nChild\n");
         printf("virtual_addr   physical_addr Y D W U\n");
-        ret = get_pagetable_range((unsigned long) test5, (unsigned long) test5 + sizeof(struct temp) - 1);
+        ret = get_pagetable_range((unsigned long) test5, (unsigned long) test5 + num * sizeof(int) - 1);
         if (ret < 0) {
             free(test1);
             free(test2);
@@ -402,12 +402,12 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-    	for (unsigned long i = 0; i < 9999; ++i)
-        	test5->a[i] = 5;
+        for (unsigned long i = 0; i < num; ++i)
+            test5[i] = 5;
 
         printf("\nAfter Child writes\n");
         printf("virtual_addr   physical_addr Y D W U\n");
-        ret = get_pagetable_range((unsigned long) test5, (unsigned long) test5 + sizeof(struct temp) - 1);
+        ret = get_pagetable_range((unsigned long) test5, (unsigned long) test5 + num * sizeof(int) - 1);
         if (ret < 0) {
             free(test1);
             free(test2);
