@@ -140,15 +140,18 @@ int main(int argc, char *argv[])
     
     pgtbl_args.fake_pgd = (unsigned long)addr;
    
-    addr1 = mmap(NULL, p4d_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    if (addr1 == MAP_FAILED) {
-	free(addr);
-        fprintf(stderr, "Error : %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+    if (pgtbl_info.pgdir_shift == pgtbl_info.p4d_shift) {
+	    pgtbl_args.fake_p4ds = (unsigned long)addr;
+    } else {
+    	addr1 = mmap(NULL, p4d_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    	if (addr1 == MAP_FAILED) {
+		free(addr);
+        	fprintf(stderr, "Error : %s\n", strerror(errno));
+        	exit(EXIT_FAILURE);
+    	} 
+    	pgtbl_args.fake_p4ds = (unsigned long)addr1;
     }
-     
-    pgtbl_args.fake_p4ds = (unsigned long)addr1;
-    
+
     addr2 = mmap(NULL, pud_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (addr2 == MAP_FAILED) {
 	free(addr);
