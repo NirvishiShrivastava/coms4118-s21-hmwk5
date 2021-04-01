@@ -122,15 +122,15 @@ int main(int argc, char *argv[])
             pgtbl_info.pud_shift, pgtbl_info.pmd_shift,
             pgtbl_info.page_shift);
 
-    pgd_size = 512 * sizeof(unsigned long);
+    pgd_size = PTR_PER_PXX * sizeof(unsigned long);
     /* Check if paging level is 4 or 5 */
     if (pgtbl_info.pgdir_shift == pgtbl_info.p4d_shift)
         p4d_size = 1 * pgd_size;
     else
-        p4d_size = 512 * pgd_size;
+        p4d_size = PTR_PER_PXX * pgd_size;
     
-    pud_size = 512 * p4d_size;
-    pmd_size = 512 * pud_size;
+    pud_size = PTR_PER_PXX * p4d_size;
+    pmd_size = PTR_PER_PXX * pud_size;
     pte_size = 1 * pmd_size;
 
     /* Allocating memory for page tables */
