@@ -75,9 +75,9 @@ static inline int ctor_fake_pmd(struct mm_struct *task_mm,
 	do {
 		next = pmd_addr_end(addr, end);
 
-		if (pmd_none(*orig_pmd) || unlikely(pmd_bad(*orig_pmd))) {
+		if (pmd_none(*orig_pmd) || unlikely(pmd_bad(*orig_pmd)))
 			continue;
-		}
+
 		ret = remap_fake_pte(task_mm, tsk, orig_pmd, fake_pmd_addr,
 				temp_args, addr, next);
 		if (ret)
@@ -116,9 +116,9 @@ static inline int ctor_fake_pud(struct mm_struct *task_mm,
 
 	do {
 		next = pud_addr_end(addr, end);
-		if (pud_none_or_clear_bad(orig_pud)) {
+		if (pud_none_or_clear_bad(orig_pud))
 			continue;
-		}
+
 		ret = ctor_fake_pmd(task_mm, tsk, orig_pud, fake_pud_addr,
 						temp_args, addr, next);
 		if (ret)
@@ -135,8 +135,8 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm,
 {
 	int ret;
 	unsigned long next;
-        unsigned long *fake_pgd_entry, fake_p4d_addr;
-        p4d_t *orig_p4d;
+	unsigned long *fake_pgd_entry, fake_p4d_addr;
+	p4d_t *orig_p4d;
 
 	if (!pgtable_l5_enabled()) {
 		ret = ctor_fake_pud(task_mm, tsk, (p4d_t *)orig_pgd, fake_pgd,
@@ -270,8 +270,10 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 
 	/* Clearing unused p4d tables */
 	if (pgtable_l5_enabled()) {
-		used_p4d_size = fake_p4d_tbl_count * PTRS_PER_P4D * sizeof(unsigned long);
-		total_p4d_size = PTRS_PER_PGD * PTRS_PER_P4D * sizeof(unsigned long);
+		used_p4d_size = fake_p4d_tbl_count *
+				PTRS_PER_P4D * sizeof(unsigned long);
+		total_p4d_size = PTRS_PER_PGD *
+				PTRS_PER_P4D * sizeof(unsigned long);
 		begin_p4d_clear = temp_args.fake_p4ds + used_p4d_size;
 		if (do_munmap(task_mm, begin_p4d_clear,
 			(int) (total_p4d_size - used_p4d_size), NULL))
@@ -279,15 +281,18 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	}
 
 	/* Clearing unused pud tables */
-	used_pud_size = fake_pud_tbl_count * PTRS_PER_PUD * sizeof(unsigned long);
-	total_pud_size = PTRS_PER_PGD * PTRS_PER_P4D * PTRS_PER_PUD * sizeof(unsigned long);
+	used_pud_size = fake_pud_tbl_count *
+			PTRS_PER_PUD * sizeof(unsigned long);
+	total_pud_size = PTRS_PER_PGD * PTRS_PER_P4D *
+			PTRS_PER_PUD * sizeof(unsigned long);
 	begin_pud_clear = temp_args.fake_puds + used_pud_size;
 	if (do_munmap(task_mm, begin_pud_clear,
 		(int) (total_pud_size - used_pud_size), NULL))
 		return -ENOMEM;
 
 	/* Clearing unused pmd tables */
-	used_pmd_size = fake_pmd_tbl_count * PTRS_PER_PMD * sizeof(unsigned long);
+	used_pmd_size = fake_pmd_tbl_count *
+			PTRS_PER_PMD * sizeof(unsigned long);
 	total_pmd_size = PTRS_PER_PMD * total_pud_size;
 	begin_pmd_clear = temp_args.fake_pmds + used_pmd_size;
 	if (do_munmap(task_mm, begin_pmd_clear,
@@ -295,7 +300,8 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 		return -ENOMEM;
 
 	/* Clearing unused pte tables */
-	used_pte_size = fake_pte_tbl_count * PTRS_PER_PTE * sizeof(unsigned long);
+	used_pte_size = fake_pte_tbl_count *
+			PTRS_PER_PTE * sizeof(unsigned long);
 	total_pte_size = 1 * total_pmd_size;
 	begin_pte_clear = temp_args.page_table_addr + used_pte_size;
 	if (do_munmap(task_mm, begin_pte_clear,
