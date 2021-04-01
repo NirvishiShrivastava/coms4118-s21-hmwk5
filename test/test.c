@@ -184,34 +184,37 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
     fake_pgd = (unsigned long *)pgtbl_args.fake_pgd;
     
     for (current_va = va_begin; current_va < va_end; current_va += PAGE_SIZE) {
-        
-        f_pgd = (unsigned long *)fake_pgd[page_index( current_va, pgtbl_info.pgdir_shift )];
-        if(f_pgd == 0)
+	    f_pgd = (unsigned long *)fake_pgd[page_index( current_va, pgtbl_info.pgdir_shift )];
+            if(f_pgd == 0)
+                    goto verbose_continue;
+    
+            /*f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
+             * if (f_p4d == 0)
+             *     goto verbose_continue;
+             *
+             */
+
+            f_pud = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.pud_shift )]; 
+            if (f_pud == 0)
+                    goto verbose_continue;
+
+            f_pmd = (unsigned long *)f_pud[page_index( current_va, pgtbl_info.pmd_shift )]; 
+            if (f_pmd == 0)
+                    goto verbose_continue;
+    
+            f_pte = f_pmd[page_index( current_va, pgtbl_info.page_shift )]; 
+            if (f_pte == 0)
+                    goto verbose_continue;
+
+            printf("%#014lx %#013lx %d %d %d %d\n", current_va, get_phys_addr(f_pte), young_bit(f_pte), dirty_bit(f_pte), write_bit(f_pte), user_bit(f_pte));
             continue;
-        
-        /*f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
-        if (f_p4d == 0)
-            continue;
-        */
-        f_pud = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.pud_shift )];
-        if (f_pud == 0)
-            continue;
-        
-        f_pmd = (unsigned long *)f_pud[page_index( current_va, pgtbl_info.pmd_shift )];
-        if (f_pmd == 0)
-            continue;
-        
-        f_pte = f_pmd[page_index( current_va, pgtbl_info.page_shift )];
-        if (f_pte == 0) {
-            if (verbose)
+
+verbose_continue:
+            if (verbose) {
                 /* If a page is not present and the -v option is used */
                 printf("0xdead00000000 0x00000000000 0 0 0 0\n");
-            continue;
-            
-        }
-        
-        printf("%#014lx %#013lx %d %d %d %d\n", current_va, get_phys_addr(f_pte), young_bit(f_pte), dirty_bit(f_pte), write_bit(f_pte), user_bit(f_pte));
-        
+            }   
+            continue; 
     }
     
     
