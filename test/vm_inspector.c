@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <stdint.h>
+#include <sys/wait.h>
 
 #define __NR_get_pagetable_layout 436
 #define __NR_expose_page_table 437
@@ -232,34 +233,38 @@ int main(int argc, char *argv[])
 
 
     for (current_va = va_begin; current_va < va_end; current_va += PAGE_SIZE) {
-        
-        f_pgd = (unsigned long *)fake_pgd[page_index( current_va, pgtbl_info.pgdir_shift )];
-        if(f_pgd == 0)
-            continue;
-        
-        /*f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
-        if (f_p4d == 0)
-            continue;
-        */
-        f_pud = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.pud_shift )];
-        if (f_pud == 0)
-            continue;
-        
-        f_pmd = (unsigned long *)f_pud[page_index( current_va, pgtbl_info.pmd_shift )];
-        if (f_pmd == 0)
-            continue;
-        
-        f_pte = f_pmd[page_index( current_va, pgtbl_info.page_shift )];
-        if (f_pte == 0) {
-            if (verbose)
+	    
+	    f_pgd = (unsigned long *)fake_pgd[page_index( current_va, pgtbl_info.pgdir_shift )];
+	    if(f_pgd == 0)
+		    goto verbose_continue;
+	    
+	    /*f_p4d = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.p4d_shift )];
+	     * if (f_p4d == 0)
+	     *     goto verbose_continue;
+	     *
+	     */
+
+	    f_pud = (unsigned long *)f_pgd[page_index( current_va, pgtbl_info.pud_shift )];
+	    if (f_pud == 0)
+		    goto verbose_continue;
+
+	    f_pmd = (unsigned long *)f_pud[page_index( current_va, pgtbl_info.pmd_shift )];
+	    if (f_pmd == 0)
+		    goto verbose_continue;
+	
+	    f_pte = f_pmd[page_index( current_va, pgtbl_info.page_shift )];
+	    if (f_pte == 0)
+		    goto verbose_continue;
+
+	    printf("%#014lx %#013lx %d %d %d %d\n", current_va, get_phys_addr(f_pte), young_bit(f_pte), dirty_bit(f_pte), write_bit(f_pte), user_bit(f_pte));
+	    continue;
+
+verbose_continue:
+	    if (verbose) {
                 /* If a page is not present and the -v option is used */
                 printf("0xdead00000000 0x00000000000 0 0 0 0\n");
-            continue;
-            
-        }
-        
-        printf("%#014lx %#013lx %d %d %d %d\n", current_va, get_phys_addr(f_pte), young_bit(f_pte), dirty_bit(f_pte), write_bit(f_pte), user_bit(f_pte));
-        
+            }
+	    continue;
     }
     
     
