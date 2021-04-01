@@ -71,7 +71,7 @@ static inline unsigned long page_index(unsigned long address, uint32_t shift)
 {
     return (address >> shift) & (PTR_PER_PXX - 1);
 }
-struct s {
+struct temp {
     int a[9999];
 };
 
@@ -86,18 +86,14 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
     unsigned long *fake_pgd, *fake_p4ds, *fake_puds, *fake_pmds, *fake_ptes;
     unsigned long *f_pgd, *f_p4d, *f_pud, *f_pmd, f_pte;
     
-    struct s *ptr = malloc(sizeof(struct s));
     verbose = 1;
     pid = -1;
     va_begin = start;
     va_end = end;
     
-   
-
     /* Assigning begin and end VA */
     pgtbl_args.begin_vaddr = va_begin;
     pgtbl_args.end_vaddr = va_end;
-
 
     /* Calling Get Page Table Layout System Call */
     ret = get_pagetbl_layout(&pgtbl_info);
@@ -107,15 +103,15 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
         exit(EXIT_FAILURE);
     }
     
-    pgd_size = 512 * sizeof(unsigned long);
+    pgd_size = PTR_PER_PXX * sizeof(unsigned long);
     /* Check if paging level is 4 or 5 */
     if (pgtbl_info.pgdir_shift == pgtbl_info.p4d_shift)
         p4d_size = 1 * pgd_size;
     else
-        p4d_size = 512 * pgd_size;
+        p4d_size = PTR_PER_PXX * pgd_size;
     
-    pud_size = 512 * p4d_size;
-    pmd_size = 512 * pud_size;
+    pud_size = PTR_PER_PXX * p4d_size;
+    pmd_size = PTR_PER_PXX * pud_size;
     pte_size = 1 * pmd_size;
     
     /* Allocating memory for page tables */
@@ -232,82 +228,97 @@ int main(int argc, char *argv[])
 {
    
     printf("\n============================================\n");
-    printf("TEST #1: MALLOC\n");
+    printf("TESTCASE 1: Allocating heap memory but not using it.\n");
     printf("============================================\n\n");
     
     printf("virtual_addr   physical_addr Y D W U\n");
-    struct s *ptr = malloc(sizeof(struct s));
-    print_pgtbl_range((unsigned long) ptr, (unsigned long) ptr + sizeof(struct s) - 1);
+    struct temp *test1 = malloc(sizeof(struct temp));
+	if (!test1)
+		return -ENOMEM;
+    print_pgtbl_range((unsigned long) test1, (unsigned long) test1 + sizeof(struct temp) - 1);
 
     printf("\n============================================\n");
-    printf("TEST #2: WRITE FAULT\n");
+    printf("TESTCASE 2: Write Fault\n");
     printf("============================================\n\n");
     
-    struct s *ptr2 = malloc(sizeof(struct s));
+    struct temp *test2 = malloc(sizeof(struct temp));
+	if (!test2)
+		return -ENOMEM;
     printf("Before Write Fault\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    print_pgtbl_range((unsigned long) ptr2, (unsigned long) ptr2 + sizeof(struct s) - 1);
+    print_pgtbl_range((unsigned long) test2, (unsigned long) test2 + sizeof(struct temp) - 1);
     for (unsigned long i = 0; i < 9999; ++i)
-        ptr2->a[i] = 5;
+        test2->a[i] = 5;
         
     printf("\nAfter Write Fault\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    print_pgtbl_range((unsigned long) ptr2, (unsigned long) ptr2 + sizeof(struct s) - 1);
+    print_pgtbl_range((unsigned long) test2, (unsigned long) test2 + sizeof(struct temp) - 1);
 
     printf("\n============================================\n");
-    printf("TEST #3: READ FAULT\n");
+    printf("TESTCASE 3: Read Fault followed by a Write\n");
     printf("============================================\n\n");
     
-    struct s *ptr3 = malloc(sizeof(struct s));
+    struct temp *test3 = malloc(sizeof(struct temp));
+	if (!test3)
+		return -ENOMEM;
     int temp;
     printf("Before Read Fault\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    print_pgtbl_range((unsigned long) ptr3,(unsigned long) ptr3 + sizeof(struct s) - 1);
+    print_pgtbl_range((unsigned long) test3,(unsigned long) test3 + sizeof(struct temp) - 1);
+	
     for (unsigned long i = 0; i < 9999; ++i)
-        temp = ptr3->a[i];
+        temp = test3->a[i];
     printf("\nAfter Read Fault\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    print_pgtbl_range((unsigned long) ptr3, (unsigned long) ptr3 + sizeof(struct s) - 1);
+    print_pgtbl_range((unsigned long) test3, (unsigned long) test3 + sizeof(struct temp) - 1);
+	
     for (unsigned long i = 0; i < 9999; ++i)
-        ptr3->a[i] = 5;
+        test3->a[i] = 5;
+	printf("\nAfter Write\n");
+    printf("virtual_addr   physical_addr Y D W U\n");
+    print_pgtbl_range((unsigned long) test3, (unsigned long) test3 + sizeof(struct temp) - 1);
     
     printf("\n============================================\n");
-    printf("TEST #4: WRITE (NO PAGE FAULT)\n");
+    printf("TESTCASE 4: Write (without fault)\n");
     printf("============================================\n\n");
     
-    struct s *ptr4 = malloc(sizeof(struct s));
+    struct temp *test4 = malloc(sizeof(struct temp));
+	if (!test4)
+		return -ENOMEM;
     for (unsigned long i = 0; i < 9999; ++i)
-        ptr4->a[i] = 5;
+        test4->a[i] = 5;
     printf("Before Write\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    print_pgtbl_range((unsigned long) ptr4, (unsigned long) ptr4 + sizeof(struct s) - 1);
+    print_pgtbl_range((unsigned long) test4, (unsigned long) test4 + sizeof(struct temp) - 1);
     for (unsigned long i = 0; i < 9999; ++i)
-        ptr4->a[i] = 15;
+        test4->a[i] = 15;
     printf("\nAfter Write\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    print_pgtbl_range((unsigned long) ptr4, (unsigned long) ptr4 + sizeof(struct s) - 1);
+    print_pgtbl_range((unsigned long) test4, (unsigned long) test4 + sizeof(struct temp) - 1);
 
     printf("\n============================================\n");
-    printf("TEST #5: COPY ON WRITE\n");
+    printf("TESTCASE 5: Copy On Write\n");
     printf("============================================\n");
     
-    struct s *ptr5 = malloc(sizeof(struct s));
+    struct temp *test5 = malloc(sizeof(struct temp));
+	if (!test5)
+		return -ENOMEM;
     for (unsigned long i = 0; i < 9999; ++i)
-        ptr5->a[i] = 5;
+        test5->a[i] = 5;
     printf("\nParent\n");
     printf("virtual_addr   physical_addr Y D W U\n");
-    print_pgtbl_range((unsigned long) ptr5, (unsigned long) ptr5 + sizeof(struct s) - 1);
+    print_pgtbl_range((unsigned long) test5, (unsigned long) test5 + sizeof(struct temp) - 1);
     if (fork() == 0) {
         printf("\nChild\n");
         printf("virtual_addr   physical_addr Y D W U\n");
-        print_pgtbl_range((unsigned long) ptr5, (unsigned long) ptr5 + sizeof(struct s) - 1);
+        print_pgtbl_range((unsigned long) test5, (unsigned long) test5 + sizeof(struct temp) - 1);
 
 	for (unsigned long i = 0; i < 9999; ++i)
-		ptr5->a[i] = 5;
+		test5->a[i] = 5;
 
 	printf("\nAfter Child writes\n");
         printf("virtual_addr   physical_addr Y D W U\n");
-        print_pgtbl_range((unsigned long) ptr5, (unsigned long) ptr5 + sizeof(struct s) - 1);
+        print_pgtbl_range((unsigned long) test5, (unsigned long) test5 + sizeof(struct temp) - 1);
 
         //exit(1);
     }
@@ -315,11 +326,11 @@ int main(int argc, char *argv[])
     else
         wait(NULL);
 
-    free(ptr);
-    free(ptr2);
-    free(ptr3);
-    free(ptr4);
-    free(ptr5);
+    free(test1);
+    free(test2);
+    free(test3);
+    free(test4);
+    free(test5);
 
     return 0;
 }
