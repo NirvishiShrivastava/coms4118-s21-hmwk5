@@ -82,7 +82,7 @@ static inline int ctor_fake_pmd(struct mm_struct *task_mm,
 				temp_args, addr, next);
 		if (ret)
 			return ret;
-	} while (fake_pmd_addr, orig_pmd++, addr = next, addr < end);
+	} while (orig_pmd++, addr = next, addr < end);
 
 	return 0;
 }
@@ -123,7 +123,7 @@ static inline int ctor_fake_pud(struct mm_struct *task_mm,
 						temp_args, addr, next);
 		if (ret)
 			return ret;
-	} while (fake_pud_addr, orig_pud++, addr = next, addr < end);
+	} while (orig_pud++, addr = next, addr < end);
 
 	return 0;
 }
@@ -134,17 +134,15 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm,
 		unsigned long addr, unsigned long end)
 {
 	int ret;
+	unsigned long next;
+        unsigned long *fake_pgd_entry, fake_p4d_addr;
+        p4d_t *orig_p4d;
 
 	if (!pgtable_l5_enabled()) {
 		ret = ctor_fake_pud(task_mm, tsk, (p4d_t *)orig_pgd, fake_pgd,
 				temp_args, addr, end);
 		return ret;
 	}
-
-	unsigned long next;
-	unsigned long *fake_pgd_entry, fake_p4d_addr;
-	p4d_t *orig_p4d;
-
 
 	fake_pgd_entry = (unsigned long *) (fake_pgd +
 			pgd_index(addr) * sizeof(unsigned long));
@@ -167,7 +165,7 @@ static inline int ctor_fake_p4d(struct mm_struct *task_mm,
 				temp_args, addr, next);
 		if (ret)
 			return ret;
-	} while (fake_p4d_addr, orig_p4d++, addr = next, addr < end);
+	} while (orig_p4d++, addr = next, addr < end);
 
 	return 0;
 }
@@ -267,7 +265,7 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 				addr, next);
 		if (ret)
 			return ret;
-	} while (fake_pgd, orig_pgd++, addr = next, addr < end);
+	} while (orig_pgd++, addr = next, addr < end);
 
 
 	/* Clearing unused p4d tables */
