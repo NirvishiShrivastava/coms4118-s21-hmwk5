@@ -304,7 +304,7 @@ SYSCALL_DEFINE2(expose_page_table, pid_t, pid,
 	if (pid == -1)
 		task = current;
 	else if (pid == 0)
-		task = &init_task;
+		return -EINVAL;
 	else
 		task = find_task_by_vpid(pid);
 	read_unlock(&tasklist_lock);
