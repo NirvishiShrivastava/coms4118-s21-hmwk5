@@ -98,13 +98,25 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
     pgtbl_args.begin_vaddr = va_begin;
     pgtbl_args.end_vaddr = va_end;
 
-    /* TODO: get these values using get_pagetable_layout system call */
+
+    /* Calling Get Page Table Layout System Call */
+    ret = get_pagetbl_layout(&pgtbl_info);
+    if (ret < 0) {
+        fprintf(stderr, "Error : %s\n", strerror(errno));
+        printf("Get Page Table Layout System Call Failed.\n");
+        exit(EXIT_FAILURE);
+    }
+    
     pgd_size = 512 * sizeof(unsigned long);
-    p4d_size = 1 * pgd_size;
+    /* Check if paging level is 4 or 5 */
+    if (pgtbl_info.pgdir_shift == pgtbl_info.p4d_shift)
+        p4d_size = 1 * pgd_size;
+    else
+        p4d_size = 512 * pgd_size;
+    
     pud_size = 512 * p4d_size;
     pmd_size = 512 * pud_size;
     pte_size = 1 * pmd_size;
-    
     
     /* Allocating memory for page tables */
     addr = (unsigned long *)malloc(pgd_size);
@@ -152,19 +164,6 @@ int print_pgtbl_range(unsigned long start, unsigned long end)
     }
 
     pgtbl_args.page_table_addr = (unsigned long)addr4;
-    
-    /* Calling Get Page Table Layout System Call */
-    ret = get_pagetbl_layout(&pgtbl_info);
-    if (ret < 0) {
-    free(addr);
-    munmap(addr1,p4d_size);
-    munmap(addr2,pud_size);
-    munmap(addr3,pmd_size);
-    munmap(addr4,pte_size);
-        fprintf(stderr, "Error : %s\n", strerror(errno));
-        printf("Get Page Table Layout System Call Failed.\n");
-        exit(EXIT_FAILURE);
-    }
     
     /* Calling Expose Page Table System Call */
     ret = expose_page_tbl(pid, &pgtbl_args);
