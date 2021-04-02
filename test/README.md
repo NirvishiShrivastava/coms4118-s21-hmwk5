@@ -1,7 +1,6 @@
 
 TESTCASE 1: Allocating heap memory but not using it.
 ============================================
-
 virtual_addr   physical_addr Y D W U
 0x5620f5bb2670 0x0008589b000 1 1 1 1
 0xdead00000000 0x00000000000 0 0 0 0
