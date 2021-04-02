@@ -57,7 +57,8 @@ TESTCASE 3: Read Fault followed by a Write
 
 Test Performed: We dynamically allocated 10 pages worth of memory and called our system call (expose_pgtbl) to view virtual to physical address mapping. After viewing the allocation, we performed a read operation followed by a write operation.
 
-Obeservation: Here we see initially physical pages weren't allocated for the virtual address range. Following the read operation, page faults are raised and then at that time kernel allocates actual physical pages and maps to the virtual addresses. 
+Obeservation: Here we see initially physical pages weren't allocated for the virtual address range. Following the read operation, page faults are raised and then at that time kernel allocates actual physical pages and maps to the virtual addresses. Also all the virtual addresses map to one physical address because the requested memory was uninitialized. Since the dirty bit is only set when data has been modified, it makes sense that the dirty bit is unset after the read fault.
+But once we perform the write operation we see both the dirty and write bits are set and distinct physical pages are allocated to the address space.
 
 Before Read Fault
 virtual_addr   physical_addr Y D W U
