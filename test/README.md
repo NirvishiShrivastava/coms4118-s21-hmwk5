@@ -1,6 +1,11 @@
 
 TESTCASE 1: Allocating heap memory but not using it.
 ============================================
+
+Test Performed: We dynamically allocated 10 pages worth of memory and called our system call (expose_pgtbl) to view virtual to physical address mapping.
+
+Obeservation: Following is the output from our test which verifies allocation of one real page and rest are unmapped which confirms that no physical pages were allocated for the malloc'd virtual address range. 
+
 virtual_addr   physical_addr Y D W U
 0x5620f5bb2670 0x0008589b000 1 1 1 1
 0xdead00000000 0x00000000000 0 0 0 0
@@ -16,6 +21,10 @@ virtual_addr   physical_addr Y D W U
 
 TESTCASE 2: Write Fault
 ============================================
+
+Test Performed: We dynamically allocated 10 pages worth of memory and called our system call (expose_pgtbl) to view virtual to physical address mapping. After viewing the allocation, we performed a write operation by assigning values to the requested memory.
+
+Obeservation: Here we see initially physical pages weren't allocated for the virtual address range. Following the write operation, page faults are raised and then at that time kernel allocates actual physical pages and maps to the virtual addresses. Also since the data was recently written the dirty and write bits were set.
 
 Before Write Fault
 virtual_addr   physical_addr Y D W U
@@ -45,6 +54,10 @@ virtual_addr   physical_addr Y D W U
 
 TESTCASE 3: Read Fault followed by a Write
 ============================================
+
+Test Performed: We dynamically allocated 10 pages worth of memory and called our system call (expose_pgtbl) to view virtual to physical address mapping. After viewing the allocation, we performed a read operation followed by a write operation.
+
+Obeservation: Here we see initially physical pages weren't allocated for the virtual address range. Following the read operation, page faults are raised and then at that time kernel allocates actual physical pages and maps to the virtual addresses. 
 
 Before Read Fault
 virtual_addr   physical_addr Y D W U
@@ -88,6 +101,10 @@ virtual_addr   physical_addr Y D W U
 TESTCASE 4: Write (without fault)
 ============================================
 
+Test Performed: We dynamically allocated 10 pages worth of memory and performed a write operation by assigning values to the requested memory.Post which we called our system call (expose_pgtbl) to view virtual to physical address mapping. Then once again we did a write and exposed our fake pagetable mappings.
+
+Obeservation: Here we see physical pages were allocated for the entire virtual address range when the first write operation was done. On second write operation since all the required pages were already allocated there were no more page faults raised and the new entries were over written on the same physical address. 
+
 Before Write
 virtual_addr   physical_addr Y D W U
 0x5620f5bd06a0 0x00085909000 1 1 1 1
@@ -116,6 +133,11 @@ virtual_addr   physical_addr Y D W U
 
 TESTCASE 5: Copy On Write
 ============================================
+
+Test Performed: We dynamically allocated 10 pages worth of memory and called fork system call to create a child process. Following which we called our system call (expose_pgtbl) to view virtual to physical address mappings. Then to test copy-on-write a write operation was performed on the child's address space.
+
+Obeservation: We observed that in case of Linux with MMU fork works with copy-on-write. It only (allocates and) copies a few system structures and the page table, but the heap pages actually point to the ones of the parent until written. As for the allocation, the underlying memory pages point to the original physical ones of the parent process, so no extra memory pages are needed until they are modified. The copy-on-write also makes sure that the pages are write protected and hence we see the write bit for all the pages are set to 0 because of which when either the parent or the child writes to those pages a page fault occurs and new pages are allocated for the virtual address of the process performing the write operation.
+
 
 Parent
 virtual_addr   physical_addr Y D W U
