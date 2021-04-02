@@ -231,7 +231,6 @@ int main(int argc, char *argv[])
     int size_ten_pages = 4096 * 10;
     int num = size_ten_pages/sizeof(int);
 
-    printf("\n============================================\n");
     printf("TESTCASE 1: Allocating heap memory but not using it.\n");
     printf("============================================\n\n");
     
@@ -246,8 +245,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    printf("\n============================================\n");
-    printf("TESTCASE 2: Write Fault\n");
+    printf("\nTESTCASE 2: Write Fault\n");
     printf("============================================\n\n");
     
     int *test2 = (int *) malloc(size_ten_pages);
@@ -277,8 +275,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    printf("\n============================================\n");
-    printf("TESTCASE 3: Read Fault followed by a Write\n");
+    printf("\nTESTCASE 3: Read Fault followed by a Write\n");
     printf("============================================\n\n");
     
     int *test3 = (int *) malloc(size_ten_pages);
@@ -323,8 +320,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    printf("\n============================================\n");
-    printf("TESTCASE 4: Write (without fault)\n");
+    printf("\nTESTCASE 4: Write (without fault)\n");
     printf("============================================\n\n");
     
     int *test4 = (int *) malloc(size_ten_pages);
@@ -361,8 +357,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    printf("\n============================================\n");
-    printf("TESTCASE 5: Copy On Write\n");
+    printf("\nTESTCASE 5: Copy On Write\n");
     printf("============================================\n");
     
     int *test5 = (int *) malloc(size_ten_pages);
